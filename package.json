@@ -1,0 +1,18 @@
+{
+  "name": "wa_reminders",
+  "version": "0.0.1",
+  "description": "Automated Whatsapp reminders for MBO",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Barry Gausden",
+  "license": "ISC",
+  "dependencies": {
+    "unirest": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/prettyjson": "0.0.29",
+    "prettyjson": "^1.2.1"
+  }
+}
