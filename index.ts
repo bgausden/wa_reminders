@@ -17,7 +17,7 @@ function getAppointments(accessToken: string): void {
         })
         .end(function(appointmentsReqResult: any) {
             if (appointmentsReqResult.error) throw new Error(appointmentsReqResult.error)
-            console.log(render(appointmentsReqResult.raw_body))
+            console.log(render(appointmentsReqResult.body))
         })
 }
 
