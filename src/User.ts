@@ -8,6 +8,7 @@ export interface User {
     userName: string;
     password: string;
     siteId: number;
+    token?: string;
 }
 
 export class UserBuilder {
@@ -18,6 +19,7 @@ export class UserBuilder {
             userName: "",
             password: "",
             siteId: -99,
+            token: ""
         };
     }
 
@@ -36,24 +38,37 @@ export class UserBuilder {
         return this;
     }
 
+    withToken(token: string): UserBuilder {
+        this.user.token = token;
+        return this;
+    }
+
     build(): User {
         return this.user;
     }
 }
 
-function createDefaultUser(): User {
-    return new UserBuilder()
+async function createDefaultUser(): Promise<User> {
+    const user = new UserBuilder()
         .withUserName(envvars.MB_USERNAME)
-        .withPassword(envvars.MB_PASSWORD)
+        .withPassword(envvars.MB_PASSWORD)  
         .withSiteId(envvars.STUDIO_ID)
         .build();
+
+    return ({...user, token: await getUserToken(user)})
 }
 
-const defaultUser = createDefaultUser();
+const defaultUser = await createDefaultUser();
 
-
+/**
+ * 
+ * @param user 
+ * @returns Promise<string>
+ * 
+ * @summary Request a user token from Mindbody
+ */
 function getUserToken(user: User): Promise<string> {
-    const response = axios.post(
+    const response  = axios.post(
         `${MB_BASE_URL}${USER_TOKEN_ENDPOINT}`, {
         Username: user.userName,
         Password: user.password
@@ -78,6 +93,6 @@ function getUserToken(user: User): Promise<string> {
     return response
 }
 
-export { getUserToken, defaultUser };
+export { defaultUser };
 
 
