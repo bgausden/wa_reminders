@@ -3,6 +3,11 @@ import axios from "axios"
 import { MB_BASE_URL } from "./constants.js";
 import { USER_TOKEN_ENDPOINT } from "./mb_endpoints.js";
 import { render } from "prettyjson";
+import debug from "debug";
+
+const debugNamespace: string = "wa_reminders:User"
+const log = debug(debugNamespace)
+
 
 export interface User {
     userName: string;
@@ -59,6 +64,7 @@ async function createDefaultUser(): Promise<User> {
 }
 
 const defaultUser = await createDefaultUser();
+log(`Default User: ${render(defaultUser)}`)
 
 /**
  * 

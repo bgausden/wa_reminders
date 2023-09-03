@@ -1,5 +1,27 @@
+import debug from 'debug'
+
+const debugNamespace: string = 'wa_reminders:constants'
+const log = debug(debugNamespace)
 
 const MB_API_VERSION = 'v6'
-const MB_BASE_URL = `https://api.mindbodyonline.com/public/${MB_API_VERSION}`
+log(`MB_API_VERSION: ${MB_API_VERSION}`)
 
-export {MB_BASE_URL}
+const MB_BASE_URL = `https://api.mindbodyonline.com/public/${MB_API_VERSION}`
+log(`MB_BASE_URL: ${MB_BASE_URL}`)
+
+let defaultStartDateTime = new Date(Date.now())
+defaultStartDateTime.setHours(0, 0, 0, 0)
+log(`defaultStartDateTime: ${defaultStartDateTime}`)
+
+let defaultEndDateTime = new Date(Date.now())
+defaultEndDateTime.setHours(23, 59, 59, 999)
+log(`defaultEndDateTime: ${defaultEndDateTime}`)
+
+let tomorrowStartDateTime = new Date(Date.now() + 24 * 60 * 60 * 1000)
+tomorrowStartDateTime.setHours(0, 0, 0, 0)
+log(`tomorrowStartDateTime: ${tomorrowStartDateTime}`)
+
+let tomorrowEndDateTime = new Date(Date.now() + 24 * 60 * 60 * 1000)
+tomorrowEndDateTime.setHours(23, 59, 59, 999)
+log(`tomorrowEndDateTime: ${tomorrowEndDateTime}`)
+export { MB_BASE_URL, tomorrowStartDateTime, tomorrowEndDateTime }
