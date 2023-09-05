@@ -5,6 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Launch in ts-node",
+            "request": "launch",
+            "runtimeArgs": [
+                "--loader",
+                "ts-node/esm"
+            ],
+            "args": [
+                "${workspaceFolder}/${relativeFile}"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "node"
+        },
+        {
             "args": [
                 //"-u",
                 //"tdd",

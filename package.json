@@ -15,11 +15,12 @@
     "@types/debug": "^4.1.8",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.5.8",
-    "@types/prettyjson": "0.0.29",
+    "@types/prettyjson": "^0.0.29",
     "chai": "^4.3.8",
     "mocha": "^10.2.0",
     "prettyjson": "^1.2.1",
     "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
     "typescript": "^5.2.2"
   },
   "dependencies": {
