@@ -4,6 +4,8 @@ import debug from 'debug'
 import { isAxiosError } from './util.js'
 import { makeMBDateTimeString } from './makeMBDateTimeString.js'
 import { PaginationResponse } from './PaginationResponse.js'
+import { defaultLocationIds } from './constants.js'
+import { IUser } from './User.js'
 
 const status = [
   ,
@@ -54,27 +56,37 @@ const debugNamespace: string = 'wa_reminders:Appointment'
 const log = debug(debugNamespace)
 
 async function getScheduleItems(
+  user: IUser,
   startDateTime: Date,
   endDateTime: Date,
+  staffIDs: Array<number>,
   offset: number = 0,
   limit: number = 100
-): Promise<ScheduleItemResponse>  {
+): Promise<ScheduleItemResponse> {
   log(
     `getScheduleItems() startDateTime: ${startDateTime} endDateTime: ${endDateTime} offset: ${offset}`
   )
 
+  if (!user.token) {
+    return Promise.reject('User token is undefined')
+  }
   try {
     const response = await defaultHTTPClient.get(SCHEDULE_ITEMS_ENDPOINT, {
       params: {
-        StartDateTime: makeMBDateTimeString(startDateTime),
-        EndDateTime: makeMBDateTimeString(endDateTime),
-        LocationIds: [],
-        StaffIds: [],
+        StartDateTime: makeMBDateTimeString(startDateTime)[0],
+        EndDateTime: makeMBDateTimeString(endDateTime)[0],
+        LocationIds: defaultLocationIds,
+        StaffIds: staffIDs,
         IgnorePrepFinishTimes: false,
         Limit: limit,
         Offset: offset,
       },
+      headers: {
+        authorization: user.token,
+      },
     })
+    //log(response.config.headers)
+    log(response.config.params)
     return response.data // has shape ScheduleItemResponse
   } catch (error) {
     isAxiosError(error)

@@ -10,7 +10,7 @@ dotenv.config({
 
 const ev = z.object({
   API_KEY: z.string(),
-  STUDIO_ID: z.coerce.number(),
+  SITE_ID: z.coerce.number(),
   MB_USERNAME: z.string(),
   MB_PASSWORD: z.string(),
 })

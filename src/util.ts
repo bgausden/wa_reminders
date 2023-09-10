@@ -22,8 +22,10 @@ function isAxiosError(error: any): asserts error is AxiosError {
   }
 }
 
-export {
-  tomorrowMidnight,
-  tomorrowElevenFiftyNine,
-  isAxiosError,
+function isString(arg: any): asserts arg is string {
+  if (typeof arg !== 'string') {
+    throw new TypeError('arg is not a string')
+  }
 }
+
+export { tomorrowMidnight, tomorrowElevenFiftyNine, isAxiosError, isString }

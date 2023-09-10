@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { MB_BASE_URL } from './constants.js'
-import { User, defaultUser } from './User.js'
+import { IUser, User } from './User.js'
 import envVars from './envvars.js'
 import debug from 'debug'
 import http from 'node:http'
@@ -18,19 +18,15 @@ const agentSelector = function (_parsedURL: any) {
     return httpsAgent
   }
 }
-function initHttpClient(user: User) {
-  if (!user.token) {
-    log(
-      `User ${user.userName} does not have a token. Consider calling getUserToken() first.`
-    )
-  }
+
+function initHttpClient(user: IUser) {
   const httpClient = axios.create({
     baseURL: MB_BASE_URL,
     headers: {
       'Content-Type': 'application/json',
       'API-Key': envVars.API_KEY,
-      SiteId: user.siteId.toString(),
-      Authorization: user.token,
+      SiteId: user?.siteId ? user.siteId : envVars.SITE_ID,
+      Authorization: user?.token,
     },
     maxBodyLength: Infinity,
     httpsAgent: new https.Agent({ keepAlive: true }), // work-around for a node bug that triggers ECONNRESET
@@ -38,6 +34,6 @@ function initHttpClient(user: User) {
   return httpClient
 }
 
-const defaultHTTPClient = initHttpClient(defaultUser)
+const defaultHTTPClient = initHttpClient(User.defaultUser)
 
 export { defaultHTTPClient, initHttpClient }

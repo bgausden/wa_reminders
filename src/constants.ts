@@ -1,4 +1,5 @@
 import debug from 'debug'
+import envVars from './envvars.js'
 
 const debugNamespace: string = 'wa_reminders:constants'
 const log = debug(debugNamespace)
@@ -24,4 +25,13 @@ log(`tomorrowStartDateTime: ${tomorrowStartDateTime}`)
 let tomorrowEndDateTime = new Date(Date.now() + 24 * 60 * 60 * 1000)
 tomorrowEndDateTime.setHours(23, 59, 59, 999)
 log(`tomorrowEndDateTime: ${tomorrowEndDateTime}`)
-export { MB_BASE_URL, tomorrowStartDateTime, tomorrowEndDateTime }
+
+const defaultLocationIds = [0, 1] // physical and online store maybe?
+
+export {
+  MB_API_VERSION,
+  MB_BASE_URL,
+  tomorrowStartDateTime,
+  tomorrowEndDateTime,
+  defaultLocationIds,
+}
