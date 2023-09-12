@@ -258,7 +258,7 @@ async function getStaff(staffIds?:Array<Staff>): Promise<StaffResponse> {
       // Something happened in setting up the request that triggered an Error
       log(error.message)
     }
-    log(error.config)
+    //log(error.config)
   }
   return Promise.reject('getStaff() failed')
 }

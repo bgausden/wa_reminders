@@ -7,17 +7,23 @@
         {
             "name": "Launch in ts-node",
             "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "NODE_ENV": "development",
+                "DEBUG": "wa_reminders:*"
+            },
             "runtimeArgs": [
                 "--loader",
-                "ts-node/esm"
+                "ts-node/esm",
             ],
             "args": [
-                "${workspaceFolder}/${relativeFile}"
+                "${relativeFile}"
             ],
             "skipFiles": [
-                "<node_internals>/**"
+                "<node_internals>/**",
+                "<node_modules>/**"
             ],
-            "type": "node"
+            "type": "node",
         },
         {
             "args": [
