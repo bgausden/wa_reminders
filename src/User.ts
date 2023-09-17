@@ -112,7 +112,7 @@ async function getUserToken(user: IUser): Promise<string> {
     }
     const token = response.data.AccessToken
     isString(token)
-    log (`Token for user ${user.userName} is ${token}`)
+    log(`Token for user ${user.userName} is ${token}`)
     return token
   } catch (error) {
     log(`getUserToken() failed for user ${user.userName}`)
@@ -158,7 +158,7 @@ interface StaffResponse {
   StaffMembers: Array<Staff>
 }
 
-async function getStaff(staffIds?:Array<Staff>): Promise<StaffResponse> {
+async function getStaff(staffIds?: Array<Staff>): Promise<StaffResponse> {
   try {
     if (!defaultHTTPClient) {
       initHttpClient(User.defaultUser)
@@ -167,7 +167,7 @@ async function getStaff(staffIds?:Array<Staff>): Promise<StaffResponse> {
       `${MB_BASE_URL}${STAFF_ENDPOINT}`,
       {
         params: {
-          'request.staffIds': staffIds,
+          staffIds: staffIds,
         },
       }
     )
@@ -206,4 +206,4 @@ export { IUser, User, StaffResponse, Staff, getStaff }
 await User.init()
 
 // Debugging
-// log((await getStaff()).StaffMembers.filter((staff) => staff.LastName === 'Gausden'))
+//log((await getStaff()).StaffMembers.filter((staff) => staff.LastName === 'Gausden'))

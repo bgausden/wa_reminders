@@ -38,6 +38,7 @@ const hauJat = new DayWithOffset(2)
 
 function isAxiosError(error: any): asserts error is AxiosError {
   if (!axios.isAxiosError(error)) {
+    log(error)
     throw new TypeError('error is not an AxiosError')
   }
 }
