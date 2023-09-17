@@ -8,7 +8,6 @@ import { defaultLocationIds } from './constants.js'
 import { IUser } from './User.js'
 
 const status = [
-  ,
   'None',
   'Requested',
   'Booked',
@@ -38,7 +37,7 @@ interface Appointment {
   AddOns: any[]
 }
 
-interface Staff {
+interface ScheduleItemsByStaff {
   FirstName: string
   LastName: string
   DisplayName: string
@@ -64,7 +63,7 @@ type ScheduleItemRequestParams = (typeof scheduleItemRequestParams)[number]
 
 interface ScheduleItemResponse {
   PaginationResponse: PaginationResponse
-  StaffMembers: Staff[]
+  StaffScheduleItems: ScheduleItemsByStaff[]
 }
 
 const debugNamespace: string = 'wa_reminders:Appointment'
@@ -138,4 +137,6 @@ export {
   getScheduleItems,
   ScheduleItemRequestParams,
   TPaginationRequestParams,
+  Appointment,
+  Status,
 }
