@@ -47,6 +47,21 @@ interface Staff {
   Appointments: Appointment[]
 }
 
+const paginationRequestParams = ['limit', 'offset'] as const
+
+type TPaginationRequestParams = (typeof paginationRequestParams)[number]
+
+const scheduleItemRequestParams = [
+  'startDate',
+  'endDate',
+  'locationIds',
+  'staffIds',
+  'ignorePrepFinishTimes',
+  ...paginationRequestParams,
+] as const
+
+type ScheduleItemRequestParams = (typeof scheduleItemRequestParams)[number]
+
 interface ScheduleItemResponse {
   PaginationResponse: PaginationResponse
   StaffMembers: Staff[]
@@ -54,6 +69,7 @@ interface ScheduleItemResponse {
 
 const debugNamespace: string = 'wa_reminders:Appointment'
 const log = debug(debugNamespace)
+log.log = console.log.bind(console)
 
 async function getScheduleItems(
   user: IUser,
@@ -63,24 +79,31 @@ async function getScheduleItems(
   offset: number = 0,
   limit: number = 100
 ): Promise<ScheduleItemResponse> {
-  log(
-    `getScheduleItems() startDateTime: ${startDateTime} endDateTime: ${endDateTime} offset: ${offset}`
-  )
+  log({
+    getScheduleItems: {
+      startDateTime,
+      endDateTime,
+      staffIDs,
+      offset,
+      limit,
+    },
+  })
 
   if (!user.token) {
     return Promise.reject('User token is undefined')
   }
   try {
+    const params: Record<ScheduleItemRequestParams, any> = {
+      startDate: makeMBDateTimeString(startDateTime)[0],
+      endDate: makeMBDateTimeString(endDateTime)[0],
+      locationIds: defaultLocationIds,
+      staffIds: staffIDs,
+      ignorePrepFinishTimes: false,
+      limit: limit,
+      offset: offset,
+    }
     const response = await defaultHTTPClient.get(SCHEDULE_ITEMS_ENDPOINT, {
-      params: {
-        StartDateTime: makeMBDateTimeString(startDateTime)[0],
-        EndDateTime: makeMBDateTimeString(endDateTime)[0],
-        LocationIds: defaultLocationIds,
-        StaffIds: staffIDs,
-        IgnorePrepFinishTimes: false,
-        Limit: limit,
-        Offset: offset,
-      },
+      params: params,
       headers: {
         authorization: user.token,
       },
@@ -111,4 +134,8 @@ async function getScheduleItems(
   return Promise.reject('getScheduleItems() failed')
 }
 
-export { getScheduleItems }
+export {
+  getScheduleItems,
+  ScheduleItemRequestParams,
+  TPaginationRequestParams,
+}

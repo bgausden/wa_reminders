@@ -3,9 +3,10 @@ import debug from 'debug'
 
 const namespace = 'wa_reminders:makeMBDateTimeString'
 const log = debug(namespace)
+log.log = console.log.bind(console)
 
 function makeMBDateTimeString(arg: Date | Array<Date>): Array<string> {
-  //log(`makeMBDateTimeString() arg: ${arg}`)
+  log(`makeMBDateTimeString() arg: ${arg}`)
   if (!Array.isArray(arg)) {
     arg = [arg]
   }
@@ -33,7 +34,7 @@ function makeMBDateTimeString(arg: Date | Array<Date>): Array<string> {
         align: 'right',
       })}`
     acc.push(dateString)
-    //log(`makeMBDateTimeString() dateString: ${dateString}`)
+    log(`makeMBDateTimeString() dateString: ${dateString}`)
     return acc
   }, [])
 }

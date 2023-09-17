@@ -11,6 +11,7 @@ import { PaginationResponse } from './PaginationResponse.js'
 
 const debugNamespace: string = 'wa_reminders:User'
 const log = debug(debugNamespace)
+log.log = console.log.bind(console)
 
 interface IUser {
   userName: string
@@ -81,70 +82,6 @@ class User implements IUser {
   }
 }
 
-// class UserBuilder {
-//   private user: User
-
-//   constructor() {
-//     this.user = {
-//       userName: '',
-//       password: '',
-//       siteId: -99,
-//       token: '',
-//     }
-//   }
-
-//   withUserName(userName: string): UserBuilder {
-//     this.user.userName = userName
-//     return this
-//   }
-
-//   withPassword(password: string): UserBuilder {
-//     this.user.password = password
-//     return this
-//   }
-
-//   withSiteId(siteId: number): UserBuilder {
-//     this.user.siteId = siteId
-//     return this
-//   }
-
-//   withToken(token: string): UserBuilder {
-//     this.user.token = token
-//     return this
-//   }
-
-//   build(): User {
-//     return this.user
-//   }
-// }
-
-// async function createDefaultUser(): Promise<User> {
-//   const user = new UserBuilder()
-//     .withUserName(envvars.MB_USERNAME)
-//     .withPassword(envvars.MB_PASSWORD)
-//     .withSiteId(envvars.STUDIO_ID)
-//     .build()
-
-//   return { ...user, token: await getUserToken(user) }
-// }
-
-//const defaultUser = await createDefaultUser()
-//log({ defaultUser: defaultUser })
-
-// class defaultUser {
-//   static _user: User
-
-//   static async init() {
-//     if (this._user) {return}
-//     this._user = await createDefaultUser()
-//   }
-
-//   static get() {
-//     if (!this._user) {this.init()}
-//     return this._user
-//   }
-// }
-
 /**
  *
  * @param user
@@ -175,6 +112,7 @@ async function getUserToken(user: IUser): Promise<string> {
     }
     const token = response.data.AccessToken
     isString(token)
+    log (`Token for user ${user.userName} is ${token}`)
     return token
   } catch (error) {
     log(`getUserToken() failed for user ${user.userName}`)
@@ -265,7 +203,7 @@ async function getStaff(staffIds?:Array<Staff>): Promise<StaffResponse> {
 
 export { IUser, User, StaffResponse, Staff, getStaff }
 
-// await User.init()
+await User.init()
 
 // Debugging
 // log((await getStaff()).StaffMembers.filter((staff) => staff.LastName === 'Gausden'))

@@ -1,11 +1,12 @@
 import { render } from 'prettyjson'
 import { getScheduleItems } from './Appointment.js'
 import debug from 'debug'
-import { tomorrowElevenFiftyNine, tomorrowMidnight } from './util.js'
+import { tomorrowElevenFiftyNine, tomorrowMidnight, hauJat, tomorrow } from './util.js'
 import { User, getStaff, StaffResponse, Staff } from './User.js'
 
 const debugNamespace: string = 'wa_reminders:main'
 const log = debug(debugNamespace)
+log.log = console.log.bind(console)
 
 async function main() {
   await User.init()
@@ -16,11 +17,11 @@ async function main() {
 
   const scheduleItems = await getScheduleItems(
     User.defaultUser,
-    tomorrowMidnight(),
-    tomorrowElevenFiftyNine(),
+    tomorrow.midnight,
+    tomorrow.elevenFiftyNine,
     allStaffIds, // Must provide a staff ID or no schedules are returned
-    0,
-    undefined
+    0, // no offset. Start at the beginning
+    undefined // no limit. Get all schedules
   )
   //log(`Schedule Items: ${render(scheduleItems)}`)
 
