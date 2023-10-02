@@ -31,13 +31,13 @@ interface Appointment {
   StaffRequested: boolean
   ProgramId: number
   SessionTypeId: number
-  StaffId: number
+  StaffId: string
   ClientId: number
   Resources: any[]
   AddOns: any[]
 }
 
-interface ScheduleItemsByStaff {
+interface StaffScheduleItems {
   FirstName: string
   LastName: string
   DisplayName: string
@@ -63,10 +63,10 @@ type ScheduleItemRequestParams = (typeof scheduleItemRequestParams)[number]
 
 interface ScheduleItemResponse {
   PaginationResponse: PaginationResponse
-  StaffScheduleItems: ScheduleItemsByStaff[]
+  StaffMembers: StaffScheduleItems[]
 }
 
-const debugNamespace: string = 'wa_reminders:Appointment'
+const debugNamespace = 'wa_reminders:Appointment'
 const log = debug(debugNamespace)
 log.log = console.log.bind(console)
 
@@ -74,7 +74,7 @@ async function getScheduleItems(
   user: IUser,
   startDateTime: Date,
   endDateTime: Date,
-  staffIDs: Array<number>,
+  staffIDs: Array<string>,
   offset: number = 0,
   limit: number = 100
 ): Promise<ScheduleItemResponse> {
@@ -139,4 +139,5 @@ export {
   TPaginationRequestParams,
   Appointment,
   Status,
+  StaffScheduleItems,
 }

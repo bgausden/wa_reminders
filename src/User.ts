@@ -145,7 +145,7 @@ async function getUserToken(user: IUser): Promise<string> {
 }
 
 interface Staff {
-  Id: number
+  Id: string
   DisplayName: string
   FirstName: string
   LastName: string
