@@ -1,5 +1,13 @@
 import { string, z } from 'zod'
 import dotenv from 'dotenv'
+import debug from 'debug'
+import chalk from 'chalk'
+
+const debugNamespace = 'wa_reminders:envvars'
+const log = debug(debugNamespace)
+log.log = console.log.bind(console)
+
+log(chalk.blue(`Environment is set to ${chalk.redBright(process.env.NODE_ENV)}`))
 
 dotenv.config({
   path:
