@@ -31,7 +31,7 @@ async function main() {
   //log(`Schedule Items: ${render(scheduleItems)}`)
 
   const scheduleItems = new Array<object>()
-  scheduleItemsReponse.StaffScheduleItems.filter(
+  scheduleItemsReponse.StaffMembers.filter(
     (staff) => staff.Appointments.length > 0
   ).forEach((staff) => {
     staff.Appointments.sort((a, b) => {
