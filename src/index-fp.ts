@@ -1,24 +1,21 @@
 import * as A from 'fp-ts/lib/Array.js'
-import * as O from 'fp-ts/lib/Option.js'
-import * as S from 'fp-ts/lib/String.js'
-import * as ORD from 'fp-ts/lib/Ord.js'
-const { contramap } = ORD
-import * as FUNC from 'fp-ts/lib/function.js'
 import * as IO from 'fp-ts/lib/IO.js'
-import * as C from 'fp-ts/lib/Console.js'
+import * as O from 'fp-ts/lib/Option.js'
+import * as ORD from 'fp-ts/lib/Ord.js'
 import { Refinement } from 'fp-ts/lib/Refinement.js'
-
+import * as S from 'fp-ts/lib/String.js'
+import * as FUNC from 'fp-ts/lib/function.js'
+const { contramap } = ORD
 const { pipe } = FUNC
 
+import debug from 'debug'
 import {
-  getScheduleItems,
   Appointment,
   StaffScheduleItems,
+  getScheduleItems,
 } from './Appointment.js'
-import { getStaff, User } from './User.js'
+import { User, getStaff } from './User.js'
 import { tomorrow } from './util.js'
-import debug from 'debug'
-import { render } from 'prettyjson'
 
 type Reminder = Appointment & {
   staffDisplayName: string
@@ -27,13 +24,13 @@ type Reminder = Appointment & {
 }
 
 const debugNamespace = 'wa_reminders:main'
-const debugLog = debug(debugNamespace)
-debugLog.log = console.log.bind(console)
+const log = debug(debugNamespace)
+log.log = console.log.bind(console)
 
 const fpLog =
-  (rs: Reminder[]): IO.IO<void> =>
+  (x: any): IO.IO<void> =>
   () =>
-    debugLog(rs)
+    log(x)
 
 declare const isReminder: Refinement<unknown, Reminder>
 
@@ -75,12 +72,10 @@ async function main(): Promise<void> {
         }))
       )
     ),
-    A.sortBy([byStartDateTime])
-
-    /*       if (previousAppointment && previousAppointment.ClientId === appointment.ClientId && previousAppointment.StartDateTime === appointment.StartDateTime) {
-        appointment.suppressReason.push('same client and start time as previous appointment')
-      }
-      return appointment */
+    A.sortBy([byStartDateTime]),
+    /* T.of,
+    T.tapIO((reminders) => () => log(reminders)),
+    T.map((reminders) => reminders.map((reminder) => ({ ...reminder}))) */
   )
 
   const addSuppressReason = A.reduceWithIndex(
@@ -104,21 +99,10 @@ async function main(): Promise<void> {
       )
   )
 
-  const reminders = pipe(
-    createReminders,
-    addSuppressReason
-    //IO.of,
-    //IO.chain(ioDebugLog)
-  )
-
-  const logReminders = (rs: Reminder[]) =>
-    A.filter((r: Reminder) =>
-      //IO.chain(fpLog)(IO.of(rs)) <-- how to log via a filter?
-      isReminder(r)
-    )
+  const reminders = pipe(createReminders, addSuppressReason)
 
   pipe(reminders, IO.of, IO.chain(fpLog))()
-  debugLog('rome has fallen')
+  log('rome has fallen')
 
   // loop through appointments
   // if appointment is suppressed, skip (suppressed means previous appointment was for the same person and time of current appt is different (this allows for children having the same start time when booked under their parents name))
