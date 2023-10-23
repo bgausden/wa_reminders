@@ -4,6 +4,7 @@ import * as O from 'fp-ts/lib/Option.js'
 import * as ORD from 'fp-ts/lib/Ord.js'
 import { Refinement } from 'fp-ts/lib/Refinement.js'
 import * as S from 'fp-ts/lib/String.js'
+import * as Sep from 'fp-ts/lib/Separated.js'
 import * as FUNC from 'fp-ts/lib/function.js'
 const { contramap } = ORD
 const { pipe } = FUNC
@@ -72,13 +73,10 @@ async function main(): Promise<void> {
         }))
       )
     ),
-    A.sortBy([byStartDateTime]),
-    /* T.of,
-    T.tapIO((reminders) => () => log(reminders)),
-    T.map((reminders) => reminders.map((reminder) => ({ ...reminder}))) */
+    A.sortBy([byStartDateTime])
   )
 
-  const addSuppressReason = A.reduceWithIndex(
+  const addSuppressReason: (fa: Reminder[]) => Reminder[] = A.reduceWithIndex(
     [] as Reminder[],
     (index, reminders, reminder: Reminder) =>
       pipe(
@@ -99,9 +97,32 @@ async function main(): Promise<void> {
       )
   )
 
-  const reminders = pipe(createReminders, addSuppressReason)
+  /* 
+  // this version yields [[reminders], [reminders]] instead of Separated<Reminder[], Reminder[]>
+    const splitOutSuppressed = (reminders: Reminder[]): [Reminder[], Reminder[]] =>
+    pipe(
+      reminders,
+      A.partition((reminder) => reminder.suppressReason.length === 0),
+      (s) => [s.left, s.right]
+  ) */
 
+  const splitOutSuppressed = (
+    reminders: Reminder[]
+  ): Sep.Separated<Reminder[], Reminder[]> =>
+    pipe(
+      reminders,
+      A.partition((reminder) => reminder.suppressReason.length === 0)
+    )
+
+  const processSuppressedReminders = (
+    reminders: Sep.Separated<Reminder[], Reminder[]>
+  ): IO.IO<void> => pipe(fpLog(`suppressed reminders: ${reminders.left}`))
+
+  
+
+  const reminders = pipe(createReminders, addSuppressReason, splitOutSuppressed)
   pipe(reminders, IO.of, IO.chain(fpLog))()
+  pipe(reminders, IO.of, IO.chain(processSuppressedReminders))()
   log('rome has fallen')
 
   // loop through appointments
