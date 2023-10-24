@@ -76,26 +76,27 @@ async function main(): Promise<void> {
     A.sortBy([byStartDateTime])
   )
 
-  const addSuppressReason: (fa: Reminder[]) => Reminder[] = A.reduceWithIndex(
-    [] as Reminder[],
-    (index, reminders, reminder: Reminder) =>
-      pipe(
-        O.fromNullable(reminders[index - 1]),
-        O.filter(
-          (previousAppointment) =>
-            previousAppointment.ClientId === reminder.ClientId &&
-            previousAppointment.StartDateTime !== reminder.StartDateTime
-        ),
-        O.fold(
-          () => reminders.concat(reminder),
-          () =>
-            reminders.concat({
-              ...reminder,
-              suppressReason: [...reminder.suppressReason, 'subsequentAppt'],
-            })
+  const addSuppressSubsequentAppt: (fa: Reminder[]) => Reminder[] =
+    A.reduceWithIndex(
+      [] as Reminder[],
+      (index, reminders, reminder: Reminder) =>
+        pipe(
+          O.fromNullable(reminders[index - 1]),
+          O.filter(
+            (previousAppointment) =>
+              previousAppointment.ClientId === reminder.ClientId &&
+              previousAppointment.StartDateTime !== reminder.StartDateTime
+          ),
+          O.fold(
+            () => reminders.concat(reminder),
+            () =>
+              reminders.concat({
+                ...reminder,
+                suppressReason: [...reminder.suppressReason, 'subsequentAppt'],
+              })
+          )
         )
-      )
-  )
+    )
 
   /* 
   // this version yields [[reminders], [reminders]] instead of Separated<Reminder[], Reminder[]>
@@ -106,6 +107,24 @@ async function main(): Promise<void> {
       (s) => [s.left, s.right]
   ) */
 
+  const addSuppressBadStatus: (fa: Reminder[]) => Reminder[] = A.reduce(
+    [] as Reminder[],
+    (rs: Reminder[], r: Reminder) =>
+      pipe(
+        r,
+        O.of,
+        O.filter((reminder) => reminder.Status !== 'Booked'),
+        O.fold(
+          () => rs.concat(r),
+          () =>
+            rs.concat({
+              ...r,
+              suppressReason: [...r.suppressReason, 'badStatus'],
+            })
+        )
+      )
+  )
+
   const splitOutSuppressed = (
     reminders: Reminder[]
   ): Sep.Separated<Reminder[], Reminder[]> =>
@@ -115,12 +134,15 @@ async function main(): Promise<void> {
     )
 
   const processSuppressedReminders = (
-    reminders: Sep.Separated<Reminder[], Reminder[]>
-  ): IO.IO<void> => pipe(fpLog(`suppressed reminders: ${reminders.left}`))
+    rs: Sep.Separated<Reminder[], Reminder[]>
+  ): IO.IO<void> => pipe(fpLog(`suppressed reminders: ${rs.left}`))
 
-  
-
-  const reminders = pipe(createReminders, addSuppressReason, splitOutSuppressed)
+  const reminders = pipe(
+    createReminders,
+    addSuppressSubsequentAppt,
+    addSuppressBadStatus,
+    splitOutSuppressed
+  )
   pipe(reminders, IO.of, IO.chain(fpLog))()
   pipe(reminders, IO.of, IO.chain(processSuppressedReminders))()
   log('rome has fallen')
