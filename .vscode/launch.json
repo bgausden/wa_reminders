@@ -11,11 +11,15 @@
             "env": {
                 "NODE_ENV": "development",
                 "DEBUG": "wa_reminders:*",
-                "DEBUG_COLORS": "true",
+                //"DEBUG_COLORS": "true",
             },
-            "runtimeArgs": [
+            /*             "runtimeArgs": [
                 "--loader",
                 "ts-node/esm",
+            ], */
+            "runtimeArgs": [
+                "--import",
+                "./src/ts-loader.js"
             ],
             "args": [
                 "${relativeFile}"

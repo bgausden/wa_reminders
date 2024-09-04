@@ -28,10 +28,13 @@ log(`tomorrowEndDateTime: ${tomorrowEndDateTime}`)
 
 const defaultLocationIds = [0, 1] // physical and online store maybe?
 
+const DEFAULT_CLIENT_DISPLAY_NAME = 'Valued Glow client'
+
 export {
   MB_API_VERSION,
   MB_BASE_URL,
   tomorrowStartDateTime,
   tomorrowEndDateTime,
   defaultLocationIds,
+  DEFAULT_CLIENT_DISPLAY_NAME,
 }

@@ -2,6 +2,7 @@ import debug from 'debug'
 import axios, { AxiosError } from 'axios'
 import { makeMBDateTimeString } from './makeMBDateTimeString.js'
 import * as O from 'fp-ts/lib/Option.js'
+import { Eq } from 'fp-ts/Eq'
 
 const debugNamespace: string = 'wa_reminders:util'
 export const log = debug(debugNamespace)
@@ -49,4 +50,13 @@ function isString(arg: any): asserts arg is string {
   }
 }
 
-export { tomorrowMidnight, tomorrowElevenFiftyNine, tomorrow, hauJat, isAxiosError, isString }
+// Define an equality instance for numbers
+const eqNumber: Eq<number> = {
+  equals: (x, y) => x === y
+};
+
+const eqString: Eq<string> = {
+  equals: (x, y) => x === y
+};
+
+export { tomorrowMidnight, tomorrowElevenFiftyNine, tomorrow, hauJat, isAxiosError, isString, eqNumber, eqString }

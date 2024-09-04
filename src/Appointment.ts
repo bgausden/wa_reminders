@@ -6,6 +6,7 @@ import { makeMBDateTimeString } from './makeMBDateTimeString.js'
 import { PaginationResponse } from './PaginationResponse.js'
 import { defaultLocationIds } from './constants.js'
 import { IUser } from './User.js'
+import { ClientId } from './Client.js'
 
 const status = [
   'None',
@@ -32,7 +33,7 @@ interface Appointment {
   ProgramId: number
   SessionTypeId: number
   StaffId: string
-  ClientId: number
+  ClientId: ClientId
   Resources: any[]
   AddOns: any[]
 }
@@ -78,7 +79,10 @@ async function getScheduleItems(
   offset: number = 0,
   limit: number = 100
 ): Promise<ScheduleItemResponse> {
-  log({
+  const debugNamespace = 'wa_reminders:Appointment:getScheduleItems()'
+  const log = debug(debugNamespace)
+  log.log = console.log.bind(console)
+  /* log({
     getScheduleItems: {
       startDateTime,
       endDateTime,
@@ -87,7 +91,7 @@ async function getScheduleItems(
       limit,
     },
   })
-
+ */
   if (!user.token) {
     return Promise.reject('User token is undefined')
   }
@@ -108,7 +112,7 @@ async function getScheduleItems(
       },
     })
     //log(response.config.headers)
-    log(response.config.params)
+    log({getScheduleItems_params:(response.config.params)})
     return response.data // has shape ScheduleItemResponse
   } catch (error) {
     isAxiosError(error)
