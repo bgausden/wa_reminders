@@ -5,22 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch in ts-node",
+            "name": "Launch with tsx",
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "env": {
                 "NODE_ENV": "development",
                 "DEBUG": "wa_reminders:*",
-                //"DEBUG_COLORS": "true",
             },
-            /*             "runtimeArgs": [
-                "--loader",
-                "ts-node/esm",
-            ], */
-            "runtimeArgs": [
-                "--import",
-                "./src/ts-loader.js"
-            ],
+            "runtimeExecutable": "tsx",
             "args": [
                 "${relativeFile}"
             ],

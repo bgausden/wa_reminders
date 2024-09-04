@@ -12,24 +12,24 @@ import { render } from 'prettyjson'
 const { contramap } = ORD
 const { pipe } = FUNC
 
-import { localTemplate } from './ReminderTemplate.js'
+import { localTemplate } from '../src/ReminderTemplate.js'
 
 import debug from 'debug'
 import {
   Appointment,
   StaffScheduleItems,
   getScheduleItems,
-} from './Appointment.js'
-import { IUser, User, getStaff } from './User.js'
-import { eqNumber, eqString, tomorrow } from './util.js'
+} from '../src/Appointment.js'
+import { IUser, User, getStaff } from '../src/User.js'
+import { eqNumber, eqString, tomorrow } from '../src/util.js'
 import {
   ClientId,
   ClientWithSuspensionInfo,
   getClients,
   GetClientResponse,
-} from './Client.js'
-import { Reminder, reminderClientIds } from './Reminder.js'
-import { DEFAULT_CLIENT_DISPLAY_NAME } from './constants.js'
+} from '../src/Client.js'
+import { Reminder, reminderClientIds } from '../src/Reminder.js'
+import { DEFAULT_CLIENT_DISPLAY_NAME } from '../src/constants.js'
 import { complexLog, fpLog } from './Logging.js'
 
 const debugNamespace = 'wa_reminders:main'
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
         pipe(
           O.fromNullable(reminders[index - 1]),
           O.filter(
-            (previousAppointment) =>
+            (previousAppointment: Reminder) =>
               previousAppointment.ClientId === reminder.ClientId &&
               previousAppointment.StartDateTime !== reminder.StartDateTime
           ),
@@ -116,7 +116,7 @@ async function main(): Promise<void> {
       pipe(
         r,
         O.of,
-        O.filter((reminder) => reminder.Status !== 'Booked'),
+        O.filter((reminder:Reminder) => reminder.Status !== 'Booked'),
         O.fold(
           () => rs.concat(r), // Status is 'booked' so can simply add the reminder to the list
           () =>
@@ -179,7 +179,7 @@ async function main(): Promise<void> {
   ): Sep.Separated<Reminder[], Reminder[]> =>
     pipe(
       reminders,
-      A.partition((reminder) => reminder.suppressReason.length === 0)
+      A.partition((reminder:Reminder) => reminder.suppressReason.length === 0)
     )
 
   const processSuppressedReminders = (

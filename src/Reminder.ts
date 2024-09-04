@@ -1,8 +1,5 @@
-import * as A from "fp-ts/lib/Array.js"
-import {pipe} from 'fp-ts/lib/function.js'
 import { Appointment } from "./Appointment.js"
 import { ClientId } from "./Client.js"
-import { eqString } from "./util.js"
 
 type Reminder = Appointment & {
     staffDisplayName: string
@@ -10,11 +7,9 @@ type Reminder = Appointment & {
     suppressReason: Array<string>
   }
   
-const reminderClientIds = (reminders: Reminder[]): ClientId[] =>
-pipe(
-  reminders,
-  A.map((reminder:Reminder) => reminder.ClientId),
-  A.uniq(eqString),
-)
+const reminderClientIds = (reminders: Reminder[]): ClientId[] => {
+  const clientIds = reminders.map((reminder: Reminder) => reminder.ClientId);
+  return [...new Set(clientIds)];
+}
 
 export { Reminder, reminderClientIds }

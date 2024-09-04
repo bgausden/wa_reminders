@@ -1,8 +1,7 @@
 import debug from 'debug'
 import axios, { AxiosError } from 'axios'
 import { makeMBDateTimeString } from './makeMBDateTimeString.js'
-import * as O from 'fp-ts/lib/Option.js'
-import { Eq } from 'fp-ts/Eq'
+
 
 const debugNamespace: string = 'wa_reminders:util'
 export const log = debug(debugNamespace)
@@ -17,16 +16,16 @@ log.log = console.log.bind(console)
 class DayWithOffset {
   public offset: number
   public midnight: Date
-  public midnightDateString: O.Option<string>
+  public midnightDateString: string | null
   public elevenFiftyNine: Date
-  public elevenFiftyNineDateString: O.Option<string>
+  public elevenFiftyNineDateString: string | null
   constructor(offset: number) {
     const offsetDate = new Date(Date.now() + offset * 24 * 60 * 60 * 1000)
     this.offset = offset
     this.midnight = new Date(offsetDate.setHours(0, 0, 0, 0))
-    this.midnightDateString = O.fromNullable(makeMBDateTimeString(this.midnight)[0])
+    this.midnightDateString = makeMBDateTimeString(this.midnight)[0] || null
     this.elevenFiftyNine = new Date(offsetDate.setHours(23, 59, 59, 999))
-    this.elevenFiftyNineDateString = O.fromNullable(makeMBDateTimeString(this.elevenFiftyNine)[0])
+    this.elevenFiftyNineDateString = makeMBDateTimeString(this.elevenFiftyNine)[0] || null
   }
 }
 
@@ -44,19 +43,11 @@ function isAxiosError(error: any): asserts error is AxiosError {
   }
 }
 
-function isString(arg: any): asserts arg is string {
+function isString(arg: unknown): asserts arg is string {
   if (typeof arg !== 'string') {
     throw new TypeError('arg is not a string')
   }
 }
 
-// Define an equality instance for numbers
-const eqNumber: Eq<number> = {
-  equals: (x, y) => x === y
-};
 
-const eqString: Eq<string> = {
-  equals: (x, y) => x === y
-};
-
-export { tomorrowMidnight, tomorrowElevenFiftyNine, tomorrow, hauJat, isAxiosError, isString, eqNumber, eqString }
+export { tomorrowMidnight, tomorrowElevenFiftyNine, tomorrow, hauJat, isAxiosError, isString }
