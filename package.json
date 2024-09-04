@@ -10,29 +10,27 @@
   "author": "Barry Gausden",
   "license": "ISC",
   "devDependencies": {
-    "@tsconfig/recommended": "^1.0.3",
-    "@types/chai": "^4.3.11",
+    "@tsconfig/recommended": "^1.0.7",
+    "@types/chai": "^4.3.17",
     "@types/debug": "^4.1.12",
-    "@types/ejs": "^3.1.5",
-    "@types/mocha": "^10.0.6",
-    "@types/node": "^20.10.6",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^20.14.15",
     "@types/prettyjson": "^0.0.29",
-    "chai": "^4.4.0",
-    "mocha": "^10.2.0",
+    "chai": "^4.5.0",
+    "mocha": "^10.7.3",
     "prettyjson": "^1.2.5",
     "ts-node": "^10.9.2",
-    "tslib": "^2.6.2",
-    "typescript": "^5.3.3"
+    "tslib": "^2.6.3",
+    "typescript": "^5.5.4"
   },
   "dependencies": {
-    "axios": "^1.6.5",
+    "axios": "^1.7.4",
     "chalk": "^5.3.0",
-    "debug": "^4.3.4",
-    "dotenv": "^16.3.1",
-    "ejs": "^3.1.9",
+    "debug": "^4.3.6",
+    "dotenv": "^16.4.5",
     "fixed-width-string": "^2.0.0",
-    "fp-ts": "^2.16.2",
+    "fp-ts": "^2.16.9",
     "support-color": "^7.1.0",
-    "zod": "^3.22.4"
+    "zod": "^3.23.8"
   }
 }
