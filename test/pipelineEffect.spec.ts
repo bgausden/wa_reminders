@@ -183,4 +183,71 @@ describe('effect schemas', () => {
     )
     expect(err).toBeInstanceOf(MindbodyError)
   })
+
+  it('tolerates null display fields in schedule payloads', async () => {
+    const { decodeOrMindbody, ScheduleItemsResponseSchema } = await import(
+      '../src/effect/MbSchemas.js'
+    )
+    const { buildReminderOutputs } = await import('../src/effect/pipeline.js')
+    const decoded = await Effect.runPromise(
+      decodeOrMindbody(
+        ScheduleItemsResponseSchema,
+        {
+          StaffMembers: [
+            {
+              FirstName: null,
+              LastName: null,
+              DisplayName: null,
+              Id: 7,
+              Name: null,
+              Appointments: [
+                {
+                  Duration: 60,
+                  Id: 1,
+                  Status: 'Booked',
+                  StartDateTime: '2021-01-01T09:00:00',
+                  EndDateTime: '2021-01-01T10:00:00',
+                  Notes: null,
+                  StaffRequested: false,
+                  ProgramId: 1,
+                  SessionTypeId: 2,
+                  StaffId: 7,
+                  ClientId: 'c1',
+                  Resources: null,
+                  AddOns: null,
+                },
+              ],
+            },
+          ],
+        },
+        'GET appointment/scheduleitems'
+      )
+    )
+    const outputs = buildReminderOutputs(decoded.StaffMembers)
+    expect(outputs).toHaveLength(1)
+    expect(outputs[0]?.suppressReason).toEqual([])
+  })
+
+  it('coerces numeric staff Ids to strings (real API returns numbers)', async () => {
+    const { decodeOrMindbody, StaffResponseSchema } = await import('../src/effect/MbSchemas.js')
+    const decoded = await Effect.runPromise(
+      decodeOrMindbody(
+        StaffResponseSchema,
+        {
+          StaffMembers: [
+            {
+              Id: -5,
+              DisplayName: 'Ann',
+              FirstName: 'A',
+              LastName: 'B',
+              EmpID: 'e1',
+              EmploymentEnd: '2021-01-01T00:00:00',
+            },
+          ],
+        },
+        'GET staff/staff'
+      )
+    )
+    expect(decoded.StaffMembers[0]?.Id).toBe('-5')
+  })
 })

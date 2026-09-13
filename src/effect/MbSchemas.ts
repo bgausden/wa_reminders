@@ -6,13 +6,29 @@ import { MindbodyError } from './mbErrors.js'
 // Structs strip unknown keys (e.g. PaginationResponse) by default —
 // we only model what the pipeline consumes.
 
+// IDs arrive as numbers from the API but the pipeline treats them as
+// strings throughout. Coerce once at the boundary.
+export const IdStringSchema = Schema.transform(
+  Schema.Union(Schema.Number, Schema.String),
+  Schema.String,
+  {
+    strict: true,
+    decode: (id) => String(id),
+    encode: (id) => id,
+  }
+)
+
+const StaffIdSchema = IdStringSchema
+
 export const StaffSchema = Schema.Struct({
-  Id: Schema.String,
-  DisplayName: Schema.String,
-  FirstName: Schema.String,
-  LastName: Schema.String,
-  EmpID: Schema.String,
-  EmploymentEnd: Schema.String,
+  Id: StaffIdSchema,
+  // The pipeline only reads Id; everything else is nullable in practice
+  // (live probe: EmploymentEnd null in 58/58, EmpID null in 9/58).
+  DisplayName: Schema.NullOr(Schema.String),
+  FirstName: Schema.NullOr(Schema.String),
+  LastName: Schema.NullOr(Schema.String),
+  EmpID: Schema.NullOr(Schema.String),
+  EmploymentEnd: Schema.NullOr(Schema.String),
 })
 
 export const StaffResponseSchema = Schema.Struct({
@@ -37,22 +53,26 @@ export const AppointmentSchema = Schema.Struct({
   Status: StatusSchema,
   StartDateTime: Schema.String,
   EndDateTime: Schema.String,
-  Notes: Schema.String,
+  // Display-only / unread downstream: accept null, it happens.
+  Notes: Schema.NullOr(Schema.String),
   StaffRequested: Schema.Boolean,
   ProgramId: Schema.Number,
   SessionTypeId: Schema.Number,
-  StaffId: Schema.String,
+  StaffId: IdStringSchema,
   ClientId: Schema.String,
-  Resources: Schema.Array(Schema.Unknown),
-  AddOns: Schema.Array(Schema.Unknown),
+  Resources: Schema.NullOr(Schema.Array(Schema.Unknown)),
+  // Live probe: null in 37/37 appointments. Nothing downstream reads it.
+  AddOns: Schema.NullOr(Schema.Array(Schema.Unknown)),
 })
 
 export const StaffScheduleItemsSchema = Schema.Struct({
-  FirstName: Schema.String,
-  LastName: Schema.String,
-  DisplayName: Schema.String,
+  // Names are display-only and observed null in the wild — never assume.
+  FirstName: Schema.NullOr(Schema.String),
+  LastName: Schema.NullOr(Schema.String),
+  DisplayName: Schema.NullOr(Schema.String),
   Id: Schema.Number,
-  Name: Schema.String,
+  // Live probe: null in 11/11 schedule members.
+  Name: Schema.NullOr(Schema.String),
   Appointments: Schema.Array(AppointmentSchema),
 })
 
@@ -62,12 +82,14 @@ export const ScheduleItemsResponseSchema = Schema.Struct({
 
 export const ClientSchema = Schema.Struct({
   Id: Schema.String,
-  FirstName: Schema.String,
-  LastName: Schema.String,
-  Email: Schema.String,
-  MobilePhone: Schema.String,
-  HomePhone: Schema.String,
-  SendScheduleTexts: Schema.Boolean,
+  // Names feed the greeting line; nulls happen — the reporter falls back.
+  FirstName: Schema.NullOr(Schema.String),
+  LastName: Schema.NullOr(Schema.String),
+  // Live probe (5 clients): HomePhone null 5/5, Email null 1/5.
+  Email: Schema.NullOr(Schema.String),
+  MobilePhone: Schema.NullOr(Schema.String),
+  HomePhone: Schema.NullOr(Schema.String),
+  SendScheduleTexts: Schema.NullOr(Schema.Boolean),
   SuspensionInfo: Schema.Unknown,
 })
 

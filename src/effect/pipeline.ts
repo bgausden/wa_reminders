@@ -45,7 +45,7 @@ export function buildReminderOutputs(staffMembers: ReadonlyArray<ScheduleStaff>)
       }).forEach((appointment, index, appointments) => {
         const output: ReminderOutput = {
           Id: appointment.Id,
-          StaffId: `${appointment.StaffId} (${staff.DisplayName})`,
+          StaffId: `${appointment.StaffId} (${staff.DisplayName ?? ''})`,
           ClientId: appointment.ClientId,
           Status: appointment.Status,
           SessionTypeId: appointment.SessionTypeId,
