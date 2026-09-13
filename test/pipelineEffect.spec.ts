@@ -6,14 +6,14 @@ import {
   getScheduleEff,
   getStaffEff,
   mainEffectLayered,
+  type ScheduleStaff,
 } from '../src/effect/pipeline.js'
 import { MindbodyError, MissingTokenError } from '../src/effect/mbErrors.js'
 import { AppConfigTest } from '../src/effect/AppConfig.js'
 import { MbHttp, makeMbHttpTest } from '../src/effect/MbHttp.js'
 import { CurrentUser, CurrentUserTest, requireToken } from '../src/effect/CurrentUser.js'
-import type { StaffScheduleItems } from '../src/Appointment.js'
 
-const staffFixture = (id: number, display: string): StaffScheduleItems => ({
+const staffFixture = (id: number, display: string): ScheduleStaff => ({
   FirstName: 'A',
   LastName: 'B',
   DisplayName: display,

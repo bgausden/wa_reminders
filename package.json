@@ -7,8 +7,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "tsx src/index.ts",
-    "effect": "tsx src/index-effect.ts"
+    "dev": "tsx src/index.ts"
   },
   "author": "Barry Gausden",
   "license": "ISC",
@@ -17,9 +16,7 @@
     "@types/debug": "^4.1.13",
     "@types/ejs": "^3.1.5",
     "@types/node": "^20.19.43",
-    "@types/prettyjson": "^0.0.29",
     "mattpocock-skills": "^1.3.0",
-    "prettyjson": "^1.2.5",
     "tslib": "^2.8.1",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3",
@@ -27,13 +24,11 @@
   },
   "dependencies": {
     "axios": "^1.20.0",
-    "chalk": "^5.6.2",
     "debug": "^4.4.3",
     "dotenv": "^16.6.1",
     "effect": "^3.22.2",
     "ejs": "^3.1.10",
     "fixed-width-string": "^2.0.0",
-    "support-color": "^7.1.0",
-    "zod": "^3.25.76"
+    "support-color": "^7.1.0"
   }
 }

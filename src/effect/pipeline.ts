@@ -32,6 +32,7 @@ export interface ReminderOutput {
 // Same logic as src/index.ts, extracted verbatim. Takes the decoded
 // (readonly) schema shape — mutable legacy fixtures still assign to it.
 type ScheduleStaff = Schema.Schema.Type<typeof StaffScheduleItemsSchema>
+export type { ScheduleStaff }
 export function buildReminderOutputs(staffMembers: ReadonlyArray<ScheduleStaff>): ReminderOutput[] {
   const outputs: ReminderOutput[] = []
   staffMembers
@@ -130,7 +131,7 @@ type LayeredClient = Schema.Schema.Type<typeof GetClientsResponseSchema>['Client
 
 // Lesson 12: mainEffectLayered declares its needs in the type:
 // Effect<..., MindbodyError, MbHttp | CurrentUser>.
-// Provide layers once at the edge (index-effect.ts); unit tests provide
+// Provide layers once at the edge (src/index.ts); unit tests provide
 // test doubles instead.
 export const mainEffectLayered = Effect.gen(function* () {
   const dateStart = tomorrow.midnight

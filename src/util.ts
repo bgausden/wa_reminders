@@ -1,11 +1,4 @@
-import debug from 'debug'
-import axios, { AxiosError } from 'axios'
 import { makeMBDateTimeString } from './makeMBDateTimeString.js'
-
-
-const debugNamespace: string = 'wa_reminders:util'
-export const log = debug(debugNamespace)
-log.log = console.log.bind(console)
 
 /**
  * 
@@ -36,18 +29,4 @@ const tomorrowElevenFiftyNine = tomorrow.elevenFiftyNine
 const hauJat = new DayWithOffset(2)
 
 
-function isAxiosError(error: any): asserts error is AxiosError {
-  if (!axios.isAxiosError(error)) {
-    log(error)
-    throw new TypeError('error is not an AxiosError')
-  }
-}
-
-function isString(arg: unknown): asserts arg is string {
-  if (typeof arg !== 'string') {
-    throw new TypeError('arg is not a string')
-  }
-}
-
-
-export { tomorrowMidnight, tomorrowElevenFiftyNine, tomorrow, hauJat, isAxiosError, isString }
+export { tomorrowMidnight, tomorrowElevenFiftyNine, tomorrow, hauJat }

@@ -1,5 +1,4 @@
 import debug from 'debug'
-import envVars from './envvars.js'
 
 const debugNamespace: string = 'wa_reminders:constants'
 const log = debug(debugNamespace)
