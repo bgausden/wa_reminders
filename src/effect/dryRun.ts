@@ -42,6 +42,8 @@ export interface ReminderTemplateData {
   firstStaffName: string
   /** One entry per later staff block, in chronological order. */
   followUps: Array<{ staffName: string; services: string; prevStaffName: string }>
+  /** True when any booking in the plan is in the Services group Laser. Optional for legacy callers; defaults to false. */
+  hasLaser?: boolean
 }
 
 export const renderReminder = (
@@ -50,7 +52,7 @@ export const renderReminder = (
 ): Effect.Effect<string, DryRunError> =>
   Effect.try({
     try: () => {
-      const defaults = { firstServices: '', firstStaffName: '', followUps: [] }
+      const defaults = { firstServices: '', firstStaffName: '', followUps: [], hasLaser: false }
       return ejs.render(template, Object.assign({}, defaults, data))
     },
     catch: (cause) => toDryRunError('dry-run.render', cause),
@@ -73,6 +75,7 @@ export const planTemplateData = (
     firstServices: formatServiceList(first?.services ?? []),
     firstStaffName: firstName(first?.staffName ?? ''),
     followUps,
+    hasLaser: (plan as Partial<ClientPlan>).hasLaser === true,
   }
 }
 

@@ -28,6 +28,12 @@ export interface ReminderOutput {
   ClientId: string
   Status: string
   SessionTypeId: number
+  /** Mindbody program (service group), e.g. 8 = Hair Reduction (laser). */
+  ProgramId?: number
+  /** True when the booking is in the Services group Laser. */
+  IsLaser?: boolean
+  /** True when the booking is a laser consultation — vetoes the shave line. */
+  IsLaserConsultation?: boolean
   /** Resolved service name, e.g. `Signature Facial`. */
   ServiceName: string
   StartDateTime: string
@@ -47,9 +53,27 @@ export interface ClientPlan {
   blocks: Array<StaffBlock>
   firstStartDateTime: string
   appointmentIds: Array<number>
+  /** True when any appointment in the plan is in the Services group Laser. */
+  hasLaser: boolean
 }
 
 export type SessionTypeNames = ReadonlyMap<number, string> | Record<number, string>
+
+/** Grouping info for laser detection, from GET site/sessiontypes. */
+export type SessionTypeInfo = {
+  Name?: string | null
+  ProgramId?: number
+  Category?: string | null
+  Subcategory?: string | null
+}
+export type SessionTypeInfoMap = ReadonlyMap<number, SessionTypeInfo> | Record<number, SessionTypeInfo>
+
+/** ProgramId for Hair Reduction — the Mindbody program holding Laser/IPL services. */
+export const LASER_PROGRAM_ID = 8
+/** Session-type subcategory for laser services (`Hair removal|Laser`). */
+export const LASER_SUBCATEGORY = 'Laser'
+/** ProgramId for Consultations — consultation bookings never need the shave line. */
+export const CONSULTATION_PROGRAM_ID = 13
 
 // Lesson 5: keep this pure (no Effect, no I/O) so it is trivially testable.
 // Same logic as src/index.ts, extracted verbatim. Takes the decoded
@@ -58,6 +82,15 @@ type ScheduleStaff = Schema.Schema.Type<typeof StaffScheduleItemsSchema>
 export type { ScheduleStaff }
 type ScheduleAppointment = ScheduleStaff['Appointments'][number]
 
+const lookupSessionTypeInfo = (
+  id: number,
+  info?: SessionTypeInfoMap
+): SessionTypeInfo | undefined => {
+  if (!info) return undefined
+  if (info instanceof Map) return info.get(id)
+  return (info as Record<number, SessionTypeInfo>)[id]
+}
+
 const lookupSessionTypeName = (
   id: number,
   names?: SessionTypeNames
@@ -65,6 +98,91 @@ const lookupSessionTypeName = (
   if (!names) return undefined
   if (names instanceof Map) return names.get(id)
   return (names as Record<number, string>)[id]
+}
+
+/**
+ * True when a booking is a consultation (e.g. `Consultation - Laser and
+ * Laser Hair Removal`). Name-based (`/consult/i`) so `Training` entries
+ * that share ProgramId 13 are not misclassified; ProgramId 13 is only a
+ * fallback when the name is unresolvable. Consultations never need the
+ * shave reminder.
+ */
+export function isConsultationBooking(
+  appointment: Pick<ScheduleAppointment, 'SessionTypeId' | 'ProgramId'> & {
+    ServiceName?: string | null
+    SessionType?: { Name?: string | null } | null
+  },
+  info?: SessionTypeInfoMap,
+  resolvedName?: string
+): boolean {
+  const detail = lookupSessionTypeInfo(appointment.SessionTypeId, info)
+  const name =
+    resolvedName ??
+    (typeof appointment.ServiceName === 'string' && appointment.ServiceName.trim().length > 0
+      ? appointment.ServiceName
+      : appointment.SessionType?.Name ?? detail?.Name ?? '')
+  if (/consult/i.test(name.trim())) return true
+  if (name.trim().length === 0) {
+    if (appointment.ProgramId === CONSULTATION_PROGRAM_ID) return true
+    if (detail?.ProgramId === CONSULTATION_PROGRAM_ID) return true
+  }
+  return false
+}
+
+/**
+ * True for a laser consultation (e.g. Id 295
+ * `Consultation - Laser and Laser Hair Removal`). A laser consultation on
+ * a client's day vetoes the shave line for that client.
+ */
+export function isLaserConsultationBooking(
+  appointment: Pick<ScheduleAppointment, 'SessionTypeId' | 'ProgramId'> & {
+    ServiceName?: string | null
+    SessionType?: { Name?: string | null } | null
+  },
+  info?: SessionTypeInfoMap,
+  resolvedName?: string
+): boolean {
+  const detail = lookupSessionTypeInfo(appointment.SessionTypeId, info)
+  const name =
+    resolvedName ??
+    (typeof appointment.ServiceName === 'string' && appointment.ServiceName.trim().length > 0
+      ? appointment.ServiceName
+      : appointment.SessionType?.Name ?? detail?.Name ?? '')
+  return isConsultationBooking(appointment, info, name) && /laser/i.test(name.trim())
+}
+
+/**
+ * True when a booking is in the Services group Laser.
+ * Primary signal: session-type Subcategory == `Laser` (live catalogue:
+ * `Hair removal|Laser`). Secondary: ProgramId == 8 (Hair Reduction, the
+ * program holding all 41 Laser/IPL session types). Fallback: service
+ * name starts with `Laser`/`IPL` — covers the 9 Laser services with a
+ * null Category/Subcategory in Mindbody (e.g. `Laser - Bikini Line`).
+ * Name check is prefix-only so `Consultation - Laser` does not match.
+ * Consultations always return false — use isLaserConsultationBooking
+ * for the veto case.
+ */
+export function isLaserBooking(
+  appointment: Pick<ScheduleAppointment, 'SessionTypeId' | 'ProgramId'> & {
+    ServiceName?: string | null
+    SessionType?: { Name?: string | null } | null
+  },
+  info?: SessionTypeInfoMap,
+  resolvedName?: string
+): boolean {
+  const detail = lookupSessionTypeInfo(appointment.SessionTypeId, info)
+  const name =
+    resolvedName ??
+    (typeof appointment.ServiceName === 'string' && appointment.ServiceName.trim().length > 0
+      ? appointment.ServiceName
+      : appointment.SessionType?.Name ?? detail?.Name ?? '')
+  // Consultations (incl. `Consultation - Laser`) never count as laser treatment.
+  if (isConsultationBooking(appointment, info, name)) return false
+  const sub = detail?.Subcategory?.trim().toLowerCase()
+  if (sub === LASER_SUBCATEGORY.toLowerCase()) return true
+  if (detail?.ProgramId === LASER_PROGRAM_ID) return true
+  if (appointment.ProgramId === LASER_PROGRAM_ID) return true
+  return /^(laser|ipl)\b/i.test(name.trim())
 }
 
 export function resolveServiceName(
@@ -111,7 +229,8 @@ export function formatServiceList(names: ReadonlyArray<string | null | undefined
 
 export function buildReminderOutputs(
   staffMembers: ReadonlyArray<ScheduleStaff>,
-  sessionTypeNames?: SessionTypeNames
+  sessionTypeNames?: SessionTypeNames,
+  sessionTypeInfo?: SessionTypeInfoMap
 ): ReminderOutput[] {
   const outputs: ReminderOutput[] = []
   staffMembers
@@ -123,6 +242,7 @@ export function buildReminderOutputs(
         return 0
       }).forEach((appointment) => {
         const staffName = staffDisplayName(staff, String(appointment.StaffId))
+        const serviceName = resolveServiceName(appointment, sessionTypeNames)
         const output: ReminderOutput = {
           Id: appointment.Id,
           StaffId: `${appointment.StaffId} (${staff.DisplayName ?? ''})`,
@@ -130,7 +250,14 @@ export function buildReminderOutputs(
           ClientId: appointment.ClientId,
           Status: appointment.Status,
           SessionTypeId: appointment.SessionTypeId,
-          ServiceName: resolveServiceName(appointment, sessionTypeNames),
+          ProgramId: appointment.ProgramId,
+          IsLaser: isLaserBooking(appointment, sessionTypeInfo, serviceName),
+          IsLaserConsultation: isLaserConsultationBooking(
+            appointment,
+            sessionTypeInfo,
+            serviceName
+          ),
+          ServiceName: serviceName,
           StartDateTime: appointment.StartDateTime,
           EndDateTime: appointment.EndDateTime,
           suppressReason: new Array<string>(),
@@ -190,6 +317,11 @@ export function buildClientPlans(outputs: ReadonlyArray<ReminderOutput>): Client
       blocks,
       firstStartDateTime: sorted[0]?.StartDateTime ?? '',
       appointmentIds: sorted.map((s) => s.Id),
+      // Shave line only for laser treatment days. A laser consultation
+      // on the same client's day vetoes it entirely.
+      hasLaser:
+        sorted.some((s) => s.IsLaser === true) &&
+        !sorted.some((s) => s.IsLaserConsultation === true),
     })
   }
   return plans.sort((a, b) => (a.firstStartDateTime < b.firstStartDateTime ? -1 : 1))
@@ -309,15 +441,32 @@ export const mainEffectLayered = Effect.gen(function* () {
   const sessionTypes = yield* getSessionTypesEff.pipe(
     Effect.withLogSpan('pipeline.getSessionTypes'),
     Effect.annotateLogs({ op: 'getSessionTypes' }),
-    Effect.catchAll(() => Effect.succeed({ SessionTypes: [] as Array<{ Id: number; Name: string | null }> }))
+    Effect.catchAll(() =>
+      Effect.succeed({
+        SessionTypes: [] as Array<{
+          Id: number
+          Name: string | null
+          ProgramId?: number
+          Category?: string | null
+          Subcategory?: string | null
+        }>,
+      })
+    )
   )
   const sessionTypeNames = new Map<number, string>()
+  const sessionTypeInfo = new Map<number, SessionTypeInfo>()
   for (const st of sessionTypes.SessionTypes) {
     if (typeof st.Name === 'string' && st.Name.trim().length > 0) {
       sessionTypeNames.set(st.Id, st.Name.trim())
     }
+    sessionTypeInfo.set(st.Id, {
+      Name: st.Name,
+      ProgramId: st.ProgramId,
+      Category: st.Category,
+      Subcategory: st.Subcategory,
+    })
   }
-  const outputs = buildReminderOutputs(schedule.StaffMembers, sessionTypeNames)
+  const outputs = buildReminderOutputs(schedule.StaffMembers, sessionTypeNames, sessionTypeInfo)
 
   const unsuppressed = [
     ...new Set(

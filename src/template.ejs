@@ -4,8 +4,10 @@ This is a reminder for your <%- firstServices %> with <%- firstStaffName %> star
 <% followUps.forEach(function(f) { %>
 Following after your appointments with <%- f.prevStaffName %>, you have <%- f.services %> with <%- f.staffName %>.
 <% }); %>
+<% if (hasLaser) { %>
 
 Please note that if your appointment is for laser treatment, please ensure you have shaved prior to your appointment.
+<% } %>
 
 Our address is:
 

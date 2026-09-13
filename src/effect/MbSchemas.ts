@@ -116,9 +116,17 @@ export const TokenResponseSchema = Schema.Struct({
 // Session-type catalogue for resolving SessionTypeId -> service name.
 // Fetched via GET site/sessiontypes; kept separate so a lookup
 // failure never blocks reminders (we fall back to `Session <id>`).
+// Live shape (prod 2026-09-13): Id, Name, ProgramId, Category,
+// CategoryId, Subcategory, SubcategoryId + timing fields. Only the
+// grouping fields are modelled; the rest is stripped by the struct.
+// Category/Subcategory/ProgramId are optional so legacy fixtures
+// without them still decode.
 export const SessionTypeSchema = Schema.Struct({
   Id: Schema.Number,
   Name: Schema.NullOr(Schema.String),
+  ProgramId: Schema.optional(Schema.Number),
+  Category: Schema.optional(Schema.NullOr(Schema.String)),
+  Subcategory: Schema.optional(Schema.NullOr(Schema.String)),
 })
 
 export const SessionTypesResponseSchema = Schema.Struct({
