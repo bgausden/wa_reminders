@@ -9,6 +9,17 @@ export interface TargetDay {
   label: string
 }
 
+/** Every date in the hosted app is a Hong Kong date, whatever the server's zone is. */
+export const HK_TIME_ZONE = 'Asia/Hong_Kong'
+
+export interface CalendarDay {
+  year: number
+  /** 1-12, like `Date#getMonth()` + 1. */
+  month: number
+  /** 1-31. */
+  day: number
+}
+
 const startOfDay = (d: Date): Date => {
   const c = new Date(d)
   c.setHours(0, 0, 0, 0)
@@ -103,7 +114,12 @@ const fuzzyDate = (raw: string, now: Date): Date | undefined => {
  * - fuzzy: `14 Sep 2026`, `Sep 14 2026`, `Sep 14`, `14 Sep`
  *
  * No argument (or empty) defaults to tomorrow (offset 1).
- * Throws Error with usage hint on invalid input.
+ * Throws Error with a usage hint on invalid input. The message deliberately
+ * names no CLI flag, so the same text is reusable by the web day picker:
+ * callers add their own context (the CLI prints a `--date` usage line).
+ *
+ * Days are resolved against the host's local calendar, which the hosted app
+ * sets to `HK_TIME_ZONE`.
  */
 export function parseTargetDay(raw: string | undefined | null, now: Date = new Date()): TargetDay {
   const todayMidnight = startOfDay(now)
@@ -147,7 +163,7 @@ export function parseTargetDay(raw: string | undefined | null, now: Date = new D
       return fromMidnight(startOfDay(dt), todayMidnight)
     }
     throw new Error(
-      `Invalid --date "${raw}": "${input}" is not a real calendar date. ` +
+      `Invalid day "${raw}": "${input}" is not a real calendar date. ` +
         `Use an offset (e.g. "+1", "plus two", "3") or a date (e.g. "2026-09-14").`
     )
   }
@@ -158,9 +174,79 @@ export function parseTargetDay(raw: string | undefined | null, now: Date = new D
   }
 
   throw new Error(
-    `Invalid --date "${raw}": could not parse "${input}". ` +
+    `Invalid day "${raw}": could not parse "${input}". ` +
       `Use an offset (e.g. "+1", "plus two", "3", "today", "tomorrow") or a date (e.g. "2026-09-14", "14 Sep 2026").`
   )
+}
+
+/**
+ * The single shared resolver: turn a user-supplied day spec into a target day.
+ *
+ * This is the entry point for every caller — the CLI passes its `--date`/
+ * `--day` value, the (future) day picker passes whatever the user typed, and
+ * the timer has no spec at all. It holds no state and caches nothing, so each
+ * call is resolved against the clock at call time: a long-lived hosted process
+ * never serves yesterday's day.
+ *
+ * Throws the caller-agnostic `Invalid day ...` error described on
+ * {@link parseTargetDay} when the spec cannot be understood.
+ */
+export function resolveTargetDay(
+  spec: string | undefined | null,
+  now: Date = new Date()
+): TargetDay {
+  return parseTargetDay(spec, now)
+}
+
+// en-CA yields YYYY-MM-DD parts, convenient for calendar-day math.
+const hkDateParts = new Intl.DateTimeFormat('en-CA', {
+  timeZone: HK_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+/**
+ * The Hong Kong calendar date of an instant, as parts. Independent of the
+ * host's timezone: only `Intl` is consulted, never the local getters.
+ */
+export function hkCalendarDay(now: Date = new Date()): CalendarDay {
+  const parts = hkDateParts.formatToParts(now)
+  const value = (type: string): number =>
+    Number(parts.find((p) => p.type === type)?.value)
+  return { year: value('year'), month: value('month'), day: value('day') }
+}
+
+const addDays = (day: CalendarDay, days: number): CalendarDay => {
+  const shifted = new Date(Date.UTC(day.year, day.month - 1, day.day + days))
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  }
+}
+
+const labelOf = (day: CalendarDay): string =>
+  `${day.year}-${String(day.month).padStart(2, '0')}-${String(day.day).padStart(2, '0')}`
+
+/**
+ * The day the scheduled (timer) run reports on: tomorrow in Hong Kong time,
+ * whatever timezone the host process is running in — a UTC server at 23:00 is
+ * already in tomorrow Hong Kong, and must target the day after.
+ *
+ * `midnight`/`elevenFiftyNine` are built with the local-time constructor, so
+ * their getters read back the Hong Kong wall clock (Mindbody datetimes carry
+ * no timezone) on any host.
+ */
+export function scheduledTargetDay(now: Date = new Date()): TargetDay {
+  const nextHkDay = addDays(hkCalendarDay(now), 1)
+  const wallClock = new Date(nextHkDay.year, nextHkDay.month - 1, nextHkDay.day)
+  return {
+    offset: 1,
+    midnight: startOfDay(wallClock),
+    elevenFiftyNine: endOfDay(wallClock),
+    label: labelOf(nextHkDay),
+  }
 }
 
 const DATE_FLAGS = new Set([

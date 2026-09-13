@@ -6,7 +6,14 @@ import { MbHttpLive } from './effect/MbHttp.js'
 import { CurrentUserLive } from './effect/CurrentUser.js'
 import { DryRunError } from './effect/mbErrors.js'
 import { MindbodyError, MissingTokenError, summarizeCause } from './effect/mbErrors.js'
-import { findUnexpectedArgs, formatLongDate, formatLongDateTime, getTargetDayArg, parseTargetDay } from './targetDay.js'
+import {
+  findUnexpectedArgs,
+  formatLongDate,
+  formatLongDateTime,
+  getTargetDayArg,
+  resolveTargetDay,
+  type TargetDay,
+} from './targetDay.js'
 
 // Effect edge: compose layers once here. Nothing inside the pipeline
 // touches globals — AppConfig -> MbHttp -> CurrentUser.
@@ -43,11 +50,12 @@ if (unexpected.length > 0) {
   console.error('  npm run dry-run:prod -- --day "day after tomorrow"')
   process.exit(1)
 }
-let targetDay
-let invokedAt: Date
+// Resolved per invocation, never at module load: this process is short-lived
+// today, but the same call is what the hosted entry points make per request.
+const invokedAt = new Date()
+let targetDay: TargetDay
 try {
-  invokedAt = new Date()
-  targetDay = parseTargetDay(getTargetDayArg(process.argv), invokedAt)
+  targetDay = resolveTargetDay(getTargetDayArg(process.argv), invokedAt)
 } catch (error) {
   console.error(error instanceof Error ? error.message : error)
   console.error('Usage: node dist/index.js [--dry-run] [--html] [--date <offset-or-date>]')

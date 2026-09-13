@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { getTargetDayArg, parseTargetDay } from '../src/targetDay.js'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  getTargetDayArg,
+  parseTargetDay,
+  resolveTargetDay,
+  scheduledTargetDay,
+} from '../src/targetDay.js'
 
 // Fixed "now": Sunday 2026-09-13 15:00 local.
 const NOW = new Date(2026, 8, 13, 15, 0, 0)
@@ -72,8 +77,142 @@ describe('parseTargetDay', () => {
   })
 
   it('rejects garbage with a usage hint', () => {
-    expect(() => parseTargetDay('not a day!!', NOW)).toThrow(/--date/)
-    expect(() => parseTargetDay('2026-13-45', NOW)).toThrow()
+    expect(() => parseTargetDay('not a day!!', NOW)).toThrow(/Invalid day/)
+    expect(() => parseTargetDay('not a day!!', NOW)).toThrow(/Use an offset/)
+    expect(() => parseTargetDay('2026-13-45', NOW)).toThrow(/not a real calendar date/)
+  })
+})
+
+// The resolver every entry point shares: the CLI passes its --date/--day value,
+// the day picker will pass whatever the user typed, the timer passes nothing.
+describe('resolveTargetDay', () => {
+  it('accepts every documented form', () => {
+    // NOW is Sunday 2026-09-13 15:00 local.
+    const forms: Array<[string | undefined, string]> = [
+      [undefined, '2026-09-14'],
+      ['', '2026-09-14'],
+      ['+1', '2026-09-14'],
+      ['+ 3', '2026-09-16'],
+      ['2', '2026-09-15'],
+      ['2 days', '2026-09-15'],
+      ['in 3 days', '2026-09-16'],
+      ['plus two', '2026-09-15'],
+      ['three', '2026-09-16'],
+      ['today', '2026-09-13'],
+      ['tonight', '2026-09-13'],
+      ['tomorrow', '2026-09-14'],
+      ['tmr', '2026-09-14'],
+      ['day after tomorrow', '2026-09-15'],
+      ['monday', '2026-09-14'],
+      ['fri', '2026-09-18'],
+      ['2026-09-20', '2026-09-20'],
+      ['2026/9/5', '2026-09-05'],
+      ['2026.9.5', '2026-09-05'],
+      ['14 Sep 2026', '2026-09-14'],
+      ['Sep 20', '2026-09-20'],
+    ]
+    for (const [spec, expected] of forms) {
+      expect(resolveTargetDay(spec, NOW).label, `spec: ${String(spec)}`).toBe(expected)
+    }
+  })
+
+  it('is the same resolver as parseTargetDay', () => {
+    expect(resolveTargetDay('plus two', NOW)).toEqual(parseTargetDay('plus two', NOW))
+    expect(() => resolveTargetDay('not a day!!', NOW)).toThrow(/Invalid day/)
+  })
+
+  it('fails with a message that reads outside the CLI too', () => {
+    let message = ''
+    try {
+      resolveTargetDay('not a day!!', NOW)
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error)
+    }
+    expect(message).toMatch(/not a day!!/)
+    expect(message).toMatch(/Use an offset/)
+    // No argv jargon: the web day picker shows this text in a browser.
+    expect(message).not.toMatch(/--date|--day|argv/)
+  })
+
+  it('resolves against the clock at call time, not at module load', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 8, 13, 23, 59, 59))
+      const { resolveTargetDay: resolve } = await import('../src/targetDay.js')
+      expect(resolve().label).toBe('2026-09-14')
+
+      // Same process, one second later: midnight has passed.
+      vi.setSystemTime(new Date(2026, 8, 14, 0, 0, 0))
+      expect(resolve().label).toBe('2026-09-15')
+      expect(resolve('today').label).toBe('2026-09-14')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('scheduledTargetDay', () => {
+  // Independent oracle: tomorrow's Hong Kong calendar date, from Intl alone.
+  const hkTomorrowLabel = (now: Date): string => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Hong_Kong',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now)
+    const value = (type: string): number => Number(parts.find((p) => p.type === type)?.value)
+    const next = new Date(Date.UTC(value('year'), value('month') - 1, value('day') + 1))
+    const p = (n: number): string => String(n).padStart(2, '0')
+    return `${next.getUTCFullYear()}-${p(next.getUTCMonth() + 1)}-${p(next.getUTCDate())}`
+  }
+
+  it('is the next Hong Kong day, given UTC instants', () => {
+    // 15:00Z is 23:00 the same day in HK (+8) -> scheduled day is tomorrow.
+    expect(scheduledTargetDay(new Date('2026-09-13T15:00:00Z')).label).toBe('2026-09-14')
+    // 23:00Z is already 07:00 the next day in HK -> scheduled day is the day after.
+    expect(scheduledTargetDay(new Date('2026-09-13T23:00:00Z')).label).toBe('2026-09-15')
+  })
+
+  it('agrees with an independent Hong Kong computation, across year boundaries', () => {
+    const instants = [
+      '2026-01-01T00:30:00Z',
+      '2026-06-30T16:00:00Z',
+      '2026-09-13T23:00:00Z',
+      '2026-12-31T23:59:00Z',
+    ]
+    for (const iso of instants) {
+      const now = new Date(iso)
+      const day = scheduledTargetDay(now)
+      expect(day.label, iso).toBe(hkTomorrowLabel(now))
+      expect(day.offset, iso).toBe(1)
+      // The Dates read back the Hong Kong wall clock on whatever host this runs on.
+      expect(label(day.midnight), iso).toBe(day.label)
+      expect(label(day.elevenFiftyNine), iso).toBe(day.label)
+    }
+  })
+
+  it('spans the whole scheduled day', () => {
+    const day = scheduledTargetDay(new Date('2026-09-13T23:00:00Z'))
+    expect(day.midnight.getHours()).toBe(0)
+    expect(day.midnight.getMinutes()).toBe(0)
+    expect(day.elevenFiftyNine.getHours()).toBe(23)
+    expect(day.elevenFiftyNine.getMinutes()).toBe(59)
+  })
+
+  // Host timezone is forced, not assumed: Node re-reads process.env.TZ, so the
+  // assertion holds on a UTC server as well as a Hong Kong workstation.
+  it('is unaffected by the host timezone', () => {
+    const original = process.env.TZ
+    try {
+      for (const tz of ['UTC', 'America/New_York', 'Pacific/Kiritimati']) {
+        process.env.TZ = tz
+        expect(scheduledTargetDay(new Date('2026-09-13T23:00:00Z')).label, tz).toBe('2026-09-15')
+        expect(scheduledTargetDay(new Date('2026-09-13T15:00:00Z')).label, tz).toBe('2026-09-14')
+      }
+    } finally {
+      if (original === undefined) delete process.env.TZ
+      else process.env.TZ = original
+    }
   })
 })
 
