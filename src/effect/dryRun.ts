@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Effect, Schema } from 'effect'
 import { DEFAULT_CLIENT_DISPLAY_NAME } from '../constants.js'
+import { formatAppointmentParts, formatAppointmentTime } from '../formatAppointmentTime.js'
 import { GetClientsResponseSchema } from './MbSchemas.js'
 import { DryRunError } from './mbErrors.js'
 import { mainEffectLayered, type ReminderOutput } from './pipeline.js'
@@ -24,7 +25,13 @@ export const loadTemplate = (file = TEMPLATE_PATH): Effect.Effect<string, DryRun
 
 export const renderReminder = (
   template: string,
-  data: { clientDisplayName: string; StartDateTime: string }
+  data: {
+    clientDisplayName: string
+    AppointmentTime: string
+    AppointmentDay: string
+    /** Legacy combined form (`4PM tomorrow (Monday)`); kept for custom templates. */
+    StartDateTime: string
+  }
 ): Effect.Effect<string, DryRunError> =>
   Effect.try({
     try: () => ejs.render(template, data),
@@ -55,9 +62,12 @@ export const buildDryRunReport = (
 
     lines.push(`DRY RUN — ${sendable.length} to send, ${suppressed.length} suppressed`, '')
     for (const output of sendable) {
+      const { time, day } = formatAppointmentParts(output.StartDateTime)
       const message = yield* renderReminder(template, {
         clientDisplayName: clientDisplayName(clients, output.ClientId),
-        StartDateTime: output.StartDateTime,
+        AppointmentTime: time,
+        AppointmentDay: day,
+        StartDateTime: formatAppointmentTime(output.StartDateTime),
       })
       lines.push(`--- to client ${output.ClientId} (staff ${output.StaffId}) ---`, message, '')
     }

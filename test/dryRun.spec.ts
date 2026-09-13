@@ -15,7 +15,8 @@ import { makeMbHttpTest } from '../src/effect/MbHttp.js'
 import { CurrentUserTest } from '../src/effect/CurrentUser.js'
 import type { ReminderOutput } from '../src/effect/pipeline.js'
 
-const TEMPLATE = 'Hi <%= clientDisplayName %>, reminder for <%= StartDateTime %>.'
+const TEMPLATE =
+  'Hi <%= clientDisplayName %>, reminder for your <%= AppointmentTime %> appointment <%= AppointmentDay %>.'
 
 const sendable = (id: number, client: string): ReminderOutput => ({
   Id: id,
@@ -48,16 +49,27 @@ const clientApi = {
 describe('dry-run', () => {
   it('renders a reminder from the template', async () => {
     const message = await Effect.runPromise(
-      renderReminder(TEMPLATE, { clientDisplayName: 'Ann', StartDateTime: '2021-01-01T09:00:00' })
+      renderReminder(TEMPLATE, {
+        clientDisplayName: 'Ann',
+        AppointmentTime: '9AM',
+        AppointmentDay: 'Friday (1 Jan)',
+        StartDateTime: '9AM Friday (1 Jan)',
+      })
     )
-    expect(message).toBe('Hi Ann, reminder for 2021-01-01T09:00:00.')
+    expect(message).toBe('Hi Ann, reminder for your 9AM appointment Friday (1 Jan).')
   })
 
   it('maps template errors to DryRunError', async () => {
     const err = await Effect.runPromise(
-      renderReminder('Hi <%= unclosed', { clientDisplayName: 'Ann', StartDateTime: 'x' }).pipe(
-        Effect.flip
-      )
+      renderReminder(
+        'Hi <%= unclosed',
+        {
+          clientDisplayName: 'Ann',
+          AppointmentTime: 'x',
+          AppointmentDay: 'y',
+          StartDateTime: 'x',
+        }
+      ).pipe(Effect.flip)
     )
     expect(err).toBeInstanceOf(DryRunError)
   })
@@ -67,7 +79,7 @@ describe('dry-run', () => {
       buildDryRunReport([sendable(1, 'c1'), suppressed(2, 'c9')], [clientApi], TEMPLATE)
     )
     expect(report).toContain('1 to send, 1 suppressed')
-    expect(report).toContain('Hi Ann Bee, reminder for 2021-01-01T09:00:00.')
+    expect(report).toContain('Hi Ann Bee, reminder for your 9AM appointment Friday (1 Jan).')
     expect(report).toContain('suppressed appointment 2 (client c9): Status')
   })
 
@@ -93,7 +105,12 @@ describe('dry-run', () => {
     const { loadTemplate } = await import('../src/effect/dryRun.js')
     const template = await Effect.runPromise(loadTemplate('src/template.ejs'))
     const message = await Effect.runPromise(
-      renderReminder(template, { clientDisplayName: "Maria O'Bryne", StartDateTime: '2021-01-01T10:30:00' })
+      renderReminder(template, {
+        clientDisplayName: "Maria O'Bryne",
+        AppointmentTime: '10:30AM',
+        AppointmentDay: 'Friday (1 Jan)',
+        StartDateTime: '10:30AM Friday (1 Jan)',
+      })
     )
     expect(message).toContain("Hi Maria O'Bryne,")
     expect(message).not.toContain('&#39;')
@@ -157,7 +174,7 @@ describe('dry-run', () => {
     )
     const result = await Effect.runPromise(prog)
     try {
-      expect(result.report).toContain('Hi Ann Bee, reminder for 2021-01-01T09:00:00.')
+      expect(result.report).toContain('Hi Ann Bee, reminder for your 9AM appointment Friday (1 Jan).')
       expect(result.outputs).toHaveLength(1)
       expect(result.file.startsWith(dir)).toBe(true)
       expect(readFileSync(result.file, 'utf8')).toBe(result.report)
