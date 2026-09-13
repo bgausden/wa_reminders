@@ -1,5 +1,6 @@
 import { Effect, Schema } from 'effect'
 import { tomorrow } from '../util.js'
+import type { TargetDay } from '../targetDay.js'
 import { makeMBDateTimeString } from '../makeMBDateTimeString.js'
 import { defaultLocationIds } from '../constants.js'
 import {
@@ -457,9 +458,12 @@ type LayeredClient = Schema.Schema.Type<typeof GetClientsResponseSchema>['Client
 // Effect<..., MindbodyError, MbHttp | CurrentUser>.
 // Provide layers once at the edge (src/index.ts); unit tests provide
 // test doubles instead.
-export const mainEffectLayered = Effect.gen(function* () {
-  const dateStart = tomorrow.midnight
-  const dateEnd = tomorrow.elevenFiftyNine
+// `day` selects which calendar day to fetch reminders for; defaults to
+// tomorrow (offset 1) to preserve historical behaviour.
+export const mainEffectLayeredFor = (day: Pick<TargetDay, 'midnight' | 'elevenFiftyNine'>) =>
+  Effect.gen(function* () {
+    const dateStart = day.midnight
+    const dateEnd = day.elevenFiftyNine
 
   const staff = yield* getStaffEff().pipe(
     Effect.withLogSpan('pipeline.getStaff'),
@@ -528,4 +532,8 @@ export const mainEffectLayered = Effect.gen(function* () {
   })
 
   return { outputs, clients }
-})
+  })
+
+// Default entry point: reminders for tomorrow. Tests and existing callers
+// use this; pass a TargetDay to mainEffectLayeredFor to target another day.
+export const mainEffectLayered = mainEffectLayeredFor(tomorrow)

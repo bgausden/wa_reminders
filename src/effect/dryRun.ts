@@ -10,10 +10,13 @@ import {
   buildClientPlans,
   firstName,
   formatServiceList,
-  mainEffectLayered,
+  mainEffectLayeredFor,
   type ClientPlan,
   type ReminderOutput,
 } from './pipeline.js'
+import type { TargetDay } from '../targetDay.js'
+import { formatLongDate, formatLongDateTime } from '../targetDay.js'
+import { tomorrow } from '../util.js'
 
 type DryRunClient = Schema.Schema.Type<typeof GetClientsResponseSchema>['Clients'][number]
 
@@ -96,10 +99,15 @@ const clientDisplayName = (
 
 // Pure assembly wrapped in Effect only because rendering can fail.
 // One rendered message per client; suppressed appointments listed after.
+// Optional context prepends an invocation/target banner line.
 export const buildDryRunReport = (
   outputs: ReadonlyArray<ReminderOutput>,
   clients: ReadonlyArray<DryRunClient>,
-  template: string
+  template: string,
+  context?: {
+    invokedAt?: Date
+    targetDay?: Pick<TargetDay, 'midnight' | 'offset'>
+  }
 ): Effect.Effect<string, DryRunError> =>
   Effect.gen(function* () {
     const lines: Array<string> = []
@@ -107,6 +115,14 @@ export const buildDryRunReport = (
     const suppressed = outputs.filter((o) => o.suppressReason.length > 0)
     const sendableCount = plans.reduce((n, p) => n + p.appointmentIds.length, 0)
 
+    if (context?.targetDay) {
+      const invoked = formatLongDateTime(context.invokedAt ?? new Date())
+      const target = formatLongDate(context.targetDay.midnight)
+      lines.push(
+        `Invoked ${invoked} for target day ${target} (offset +${context.targetDay.offset})`,
+        ''
+      )
+    }
     lines.push(`DRY RUN — ${plans.length} to send (${sendableCount} appointments), ${suppressed.length} suppressed`, '')
     for (const plan of plans) {
       const data = planTemplateData(plan)
@@ -150,11 +166,20 @@ export const writeDryRunReport = (
 
 // Full dry-run: live pipeline -> render -> file. Needs MbHttp + CurrentUser
 // like mainEffectLayered; provide layers once at the edge (src/index.ts).
-export const dryRunEffect = (templateFile = TEMPLATE_PATH, opts?: { outDir?: string }) =>
+export const dryRunEffect = (
+  templateFile = TEMPLATE_PATH,
+  opts?: {
+    outDir?: string
+    targetDay?: Pick<TargetDay, 'midnight' | 'elevenFiftyNine' | 'offset'>
+    invokedAt?: Date
+  }
+) =>
   Effect.gen(function* () {
+    const invokedAt = opts?.invokedAt ?? new Date()
+    const targetDay = opts?.targetDay ?? tomorrow
     const template = yield* loadTemplate(templateFile)
-    const { outputs, clients } = yield* mainEffectLayered
-    const report = yield* buildDryRunReport(outputs, clients, template)
+    const { outputs, clients } = yield* mainEffectLayeredFor(targetDay)
+    const report = yield* buildDryRunReport(outputs, clients, template, { invokedAt, targetDay })
     const file = yield* writeDryRunReport(report, { outDir: opts?.outDir })
     yield* Effect.logInfo('dry-run complete', {
       outputs: outputs.length,

@@ -99,6 +99,23 @@ describe('dry-run', () => {
     expect(report).not.toContain('Hi Ann Bee,')
   })
 
+  it('prepends an invocation/target banner when context is given', async () => {
+    const { parseTargetDay } = await import('../src/targetDay.js')
+    const now = new Date(2026, 8, 13, 20, 56)
+    const targetDay = parseTargetDay('day after tomorrow', now)
+    const report = await Effect.runPromise(
+      buildDryRunReport([sendable(1, 'c1')], [clientApi], TEMPLATE, {
+        invokedAt: now,
+        targetDay,
+      })
+    )
+    expect(report).toContain(
+      'Invoked Sunday September 13th 2026 at 8:56pm for target day Tuesday September 15th 2026 (offset +2)'
+    )
+    // Banner comes before the summary line.
+    expect(report.indexOf('Invoked Sunday')).toBeLessThan(report.indexOf('DRY RUN'))
+  })
+
   it('falls back to surname when first name is missing', async () => {
     const cases = [
       { ...clientApi, FirstName: null },
