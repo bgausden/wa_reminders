@@ -87,8 +87,30 @@ describe('dry-run', () => {
       buildDryRunReport([sendable(1, 'c1'), suppressed(2, 'c9')], [clientApi], TEMPLATE)
     )
     expect(report).toContain('1 to send (1 appointments), 1 suppressed')
-    expect(report).toContain('Hi Ann Bee, reminder for your 9AM appointment Friday (1 Jan).')
+    expect(report).toContain('Hi Ann, reminder for your 9AM appointment Friday (1 Jan).')
     expect(report).toContain('suppressed appointment 2 (client c9): Status')
+  })
+
+  it('prefers first name over surname', async () => {
+    const report = await Effect.runPromise(
+      buildDryRunReport([sendable(1, 'c1')], [clientApi], TEMPLATE)
+    )
+    expect(report).toContain('Hi Ann, reminder for your')
+    expect(report).not.toContain('Hi Ann Bee,')
+  })
+
+  it('falls back to surname when first name is missing', async () => {
+    const cases = [
+      { ...clientApi, FirstName: null },
+      { ...clientApi, FirstName: '' },
+      { ...clientApi, FirstName: '   ' },
+    ]
+    for (const client of cases) {
+      const report = await Effect.runPromise(
+        buildDryRunReport([sendable(1, 'c1')], [client], TEMPLATE)
+      )
+      expect(report).toContain('Hi Bee, reminder for your')
+    }
   })
 
   it('groups multiple services for one client into a single message', async () => {
@@ -213,7 +235,7 @@ describe('dry-run', () => {
     )
     const result = await Effect.runPromise(prog)
     try {
-      expect(result.report).toContain('Hi Ann Bee, reminder for your 9AM appointment Friday (1 Jan).')
+      expect(result.report).toContain('Hi Ann, reminder for your 9AM appointment Friday (1 Jan).')
       expect(result.outputs).toHaveLength(1)
       expect(result.file.startsWith(dir)).toBe(true)
       expect(readFileSync(result.file, 'utf8')).toBe(result.report)

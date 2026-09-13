@@ -82,8 +82,10 @@ const clientDisplayName = (
 ): string => {
   const client = clients.find((c) => c.Id === clientId)
   if (!client) return DEFAULT_CLIENT_DISPLAY_NAME
-  const name = `${client.FirstName ?? ''} ${client.LastName ?? ''}`.trim()
-  return name.length > 0 ? name : DEFAULT_CLIENT_DISPLAY_NAME
+  const first = (client.FirstName ?? '').trim()
+  if (first.length > 0) return first
+  const last = (client.LastName ?? '').trim()
+  return last.length > 0 ? last : DEFAULT_CLIENT_DISPLAY_NAME
 }
 
 // Pure assembly wrapped in Effect only because rendering can fail.
