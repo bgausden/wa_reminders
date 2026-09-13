@@ -1,10 +1,16 @@
 import { Config, Context, Effect, Layer } from 'effect'
 import dotenv from 'dotenv'
 
-// Load .env (no crash if missing). Missing vars surface as typed
-// ConfigError when the layer is built — compare with envvars.ts which
-// throws zod errors at import time.
-dotenv.config()
+// Load the same files the legacy envvars.ts used: .env.production when
+// NODE_ENV=production (or `--env=production`, for one-shot commands like
+// `npm run dry-run:prod`), otherwise .env.development. Bare
+// dotenv.config() would only read `.env`, which this repo doesn't have.
+// Missing vars surface as typed ConfigError when the layer is built.
+const useProduction =
+  process.env.NODE_ENV === 'production' || process.argv.includes('--env=production')
+dotenv.config({
+  path: useProduction ? '.env.production' : '.env.development',
+})
 
 export interface AppConfigShape {
   apiKey: string

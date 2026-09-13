@@ -2,7 +2,7 @@ import axios, { type AxiosInstance } from 'axios'
 import https from 'node:https'
 import { Context, Effect, Layer, Schedule } from 'effect'
 import { AppConfig } from './AppConfig.js'
-import { MindbodyError } from './mbErrors.js'
+import { MindbodyError, summarizeCause } from './mbErrors.js'
 
 export interface MbHttpShape {
   get: <T>(
@@ -53,7 +53,7 @@ export const MbHttpLive = Layer.effect(
           catch: (cause) => new MindbodyError({ op, cause }),
         }).pipe(Effect.retry(mbRetrySchedule))
       }).pipe(
-        Effect.tapError((cause) => Effect.logError('mb.http error', { op, path, cause })),
+        Effect.tapError((cause) => Effect.logError('mb.http error', { op, path, cause: summarizeCause(cause) })),
         Effect.withLogSpan('mb.http'),
         Effect.annotateLogs({ op, path })
       )
