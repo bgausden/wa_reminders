@@ -5,11 +5,14 @@ import { defaultLocationIds } from '../constants.js'
 import {
   CLIENTS_ENDPOINT,
   SCHEDULE_ITEMS_ENDPOINT,
+  SESSION_TYPES_ENDPOINT,
   STAFF_ENDPOINT,
 } from '../mb_endpoints.js'
 import {
   GetClientsResponseSchema,
   ScheduleItemsResponseSchema,
+  SessionTypeSchema,
+  SessionTypesResponseSchema,
   StaffResponseSchema,
   StaffScheduleItemsSchema,
   decodeOrMindbody,
@@ -20,20 +23,96 @@ import { CurrentUser } from './CurrentUser.js'
 export interface ReminderOutput {
   Id: number
   StaffId: string
+  /** Clean staff display name, e.g. `Tamara`. Falls back to StaffId. */
+  StaffName: string
   ClientId: string
   Status: string
   SessionTypeId: number
+  /** Resolved service name, e.g. `Signature Facial`. */
+  ServiceName: string
   StartDateTime: string
   EndDateTime: string
   suppressReason: Array<string>
 }
+
+export interface StaffBlock {
+  staffName: string
+  services: Array<string>
+  startDateTime: string
+}
+
+export interface ClientPlan {
+  clientId: string
+  /** Consecutive same-staff appointments collapsed. First block holds the start time. */
+  blocks: Array<StaffBlock>
+  firstStartDateTime: string
+  appointmentIds: Array<number>
+}
+
+export type SessionTypeNames = ReadonlyMap<number, string> | Record<number, string>
 
 // Lesson 5: keep this pure (no Effect, no I/O) so it is trivially testable.
 // Same logic as src/index.ts, extracted verbatim. Takes the decoded
 // (readonly) schema shape — mutable legacy fixtures still assign to it.
 type ScheduleStaff = Schema.Schema.Type<typeof StaffScheduleItemsSchema>
 export type { ScheduleStaff }
-export function buildReminderOutputs(staffMembers: ReadonlyArray<ScheduleStaff>): ReminderOutput[] {
+type ScheduleAppointment = ScheduleStaff['Appointments'][number]
+
+const lookupSessionTypeName = (
+  id: number,
+  names?: SessionTypeNames
+): string | undefined => {
+  if (!names) return undefined
+  if (names instanceof Map) return names.get(id)
+  return (names as Record<number, string>)[id]
+}
+
+export function resolveServiceName(
+  appointment: ScheduleAppointment,
+  sessionTypeNames?: SessionTypeNames
+): string {
+  const flat = (appointment as { ServiceName?: string | null }).ServiceName
+  if (typeof flat === 'string' && flat.trim().length > 0) return flat.trim()
+  const nested = (appointment as { SessionType?: { Name?: string | null } | null })
+    .SessionType
+  if (typeof nested?.Name === 'string' && nested.Name.trim().length > 0) {
+    return nested.Name.trim()
+  }
+  const mapped = lookupSessionTypeName(appointment.SessionTypeId, sessionTypeNames)
+  if (typeof mapped === 'string' && mapped.trim().length > 0) return mapped.trim()
+  return `Session ${appointment.SessionTypeId}`
+}
+
+export function staffDisplayName(
+  staff: Pick<ScheduleStaff, 'DisplayName' | 'FirstName' | 'LastName'>,
+  fallbackId: string
+): string {
+  const display = (staff.DisplayName ?? '').trim()
+  if (display.length > 0) return display
+  const full = `${staff.FirstName ?? ''} ${staff.LastName ?? ''}`.trim()
+  return full.length > 0 ? full : fallbackId
+}
+
+/** First token of a display name: `Tamara Smith` -> `Tamara`. */
+export function firstName(name: string | null | undefined): string {
+  if (typeof name !== 'string') return ''
+  const first = name.trim().split(/\s+/)[0]
+  return first && first.length > 0 ? first : name
+}
+
+/** `['A']` -> `A`, `['A','B']` -> `A and B`, `['A','B','C']` -> `A, B and C`. */
+export function formatServiceList(names: ReadonlyArray<string | null | undefined>): string {
+  const clean = names
+    .map((n) => (typeof n === 'string' ? n.trim() : ''))
+    .filter((n) => n.length > 0)
+  if (clean.length <= 2) return clean.join(' and ')
+  return `${clean.slice(0, -1).join(', ')} and ${clean[clean.length - 1]}`
+}
+
+export function buildReminderOutputs(
+  staffMembers: ReadonlyArray<ScheduleStaff>,
+  sessionTypeNames?: SessionTypeNames
+): ReminderOutput[] {
   const outputs: ReminderOutput[] = []
   staffMembers
     .filter((staff) => staff.Appointments.length > 0)
@@ -42,13 +121,16 @@ export function buildReminderOutputs(staffMembers: ReadonlyArray<ScheduleStaff>)
         if (a.StartDateTime < b.StartDateTime) return -1
         if (a.StartDateTime > b.StartDateTime) return 1
         return 0
-      }).forEach((appointment, index, appointments) => {
+      }).forEach((appointment) => {
+        const staffName = staffDisplayName(staff, String(appointment.StaffId))
         const output: ReminderOutput = {
           Id: appointment.Id,
           StaffId: `${appointment.StaffId} (${staff.DisplayName ?? ''})`,
+          StaffName: staffName,
           ClientId: appointment.ClientId,
           Status: appointment.Status,
           SessionTypeId: appointment.SessionTypeId,
+          ServiceName: resolveServiceName(appointment, sessionTypeNames),
           StartDateTime: appointment.StartDateTime,
           EndDateTime: appointment.EndDateTime,
           suppressReason: new Array<string>(),
@@ -56,13 +138,61 @@ export function buildReminderOutputs(staffMembers: ReadonlyArray<ScheduleStaff>)
         if (appointment.Status !== 'Booked') {
           output.suppressReason.push('Status')
         }
-        if (appointment.ClientId == appointments[index - 1]?.ClientId) {
-          output.suppressReason.push('ClientId')
-        }
         outputs.push(output)
       })
     })
   return outputs
+}
+
+/**
+ * Group sendable per-appointment outputs into one plan per client.
+ * Sorts each client's appointments by start, then collapses consecutive
+ * same-staff appointments into blocks so the template can say
+ * `your A and B with Tamara starting at 12PM` + follow-ups.
+ */
+export function buildClientPlans(outputs: ReadonlyArray<ReminderOutput>): ClientPlan[] {
+  const byClient = new Map<string, ReminderOutput[]>()
+  for (const o of outputs.filter((o) => o.suppressReason.length === 0)) {
+    const list = byClient.get(o.ClientId) ?? []
+    list.push(o)
+    byClient.set(o.ClientId, list)
+  }
+  const plans: ClientPlan[] = []
+  for (const [clientId, list] of byClient) {
+    const sorted = [...list].sort((a, b) =>
+      a.StartDateTime < b.StartDateTime ? -1 : a.StartDateTime > b.StartDateTime ? 1 : 0
+    )
+    const blocks: StaffBlock[] = []
+    for (const appt of sorted) {
+      // Tolerate legacy outputs without StaffName/ServiceName (old tests).
+      const legacy = appt as Partial<ReminderOutput>
+      const staffLabel =
+        typeof legacy.StaffName === 'string' && legacy.StaffName.trim().length > 0
+          ? legacy.StaffName
+          : (legacy.StaffId ?? 'Staff')
+      const serviceLabel =
+        typeof legacy.ServiceName === 'string' && legacy.ServiceName.trim().length > 0
+          ? legacy.ServiceName
+          : `Session ${appt.SessionTypeId}`
+      const last = blocks[blocks.length - 1]
+      if (last && last.staffName === staffLabel) {
+        last.services.push(serviceLabel)
+      } else {
+        blocks.push({
+          staffName: staffLabel,
+          services: [serviceLabel],
+          startDateTime: appt.StartDateTime,
+        })
+      }
+    }
+    plans.push({
+      clientId,
+      blocks,
+      firstStartDateTime: sorted[0]?.StartDateTime ?? '',
+      appointmentIds: sorted.map((s) => s.Id),
+    })
+  }
+  return plans.sort((a, b) => (a.firstStartDateTime < b.firstStartDateTime ? -1 : 1))
 }
 
 // Lesson 11: layered API. Same domain calls, but Http + User come from
@@ -107,6 +237,33 @@ export const getScheduleEff = (
     )
   })
 
+export const getSessionTypesEff = Effect.gen(function* () {
+  const http = yield* MbHttp
+  // Site endpoint: Api-Key/SiteId come from base headers, no user token needed.
+  // The catalogue is paginated (prod: 373 types), so walk all pages.
+  // Best-effort: a failed page keeps what we have rather than failing reminders.
+  const limit = 200
+  let offset = 0
+  const all: Array<Schema.Schema.Type<typeof SessionTypeSchema>> = []
+  for (let page = 0; page < 10; page++) {
+    const result = yield* http
+      .get<unknown>(SESSION_TYPES_ENDPOINT, { params: { limit, offset } })
+      .pipe(
+        Effect.flatMap((res) =>
+          decodeOrMindbody(SessionTypesResponseSchema, res.data, 'GET site/sessiontypes')
+        ),
+        Effect.catchAll(() => Effect.succeed(null))
+      )
+    if (result === null || result.SessionTypes.length === 0) break
+    all.push(...result.SessionTypes)
+    offset += result.SessionTypes.length
+    const total = result.PaginationResponse?.TotalResults
+    if (typeof total === 'number' && all.length >= total) break
+    if (result.SessionTypes.length < limit) break
+  }
+  return { SessionTypes: all }
+})
+
 export const getClientsEff = (clientIds: string[]) =>
   Effect.gen(function* () {
     const http = yield* MbHttp
@@ -147,7 +304,20 @@ export const mainEffectLayered = Effect.gen(function* () {
     Effect.withLogSpan('pipeline.getSchedule'),
     Effect.annotateLogs({ op: 'getSchedule' })
   )
-  const outputs = buildReminderOutputs(schedule.StaffMembers)
+  // Session-type catalogue is best-effort: reminders still send with
+  // `Session <id>` fallback if the lookup fails or the mock has no handler.
+  const sessionTypes = yield* getSessionTypesEff.pipe(
+    Effect.withLogSpan('pipeline.getSessionTypes'),
+    Effect.annotateLogs({ op: 'getSessionTypes' }),
+    Effect.catchAll(() => Effect.succeed({ SessionTypes: [] as Array<{ Id: number; Name: string | null }> }))
+  )
+  const sessionTypeNames = new Map<number, string>()
+  for (const st of sessionTypes.SessionTypes) {
+    if (typeof st.Name === 'string' && st.Name.trim().length > 0) {
+      sessionTypeNames.set(st.Id, st.Name.trim())
+    }
+  }
+  const outputs = buildReminderOutputs(schedule.StaffMembers, sessionTypeNames)
 
   const unsuppressed = [
     ...new Set(

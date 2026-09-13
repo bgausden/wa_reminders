@@ -21,9 +21,11 @@ const TEMPLATE =
 const sendable = (id: number, client: string): ReminderOutput => ({
   Id: id,
   StaffId: 's1 (Ann)',
+  StaffName: 'Ann',
   ClientId: client,
   Status: 'Booked',
   SessionTypeId: 2,
+  ServiceName: 'Service 2',
   StartDateTime: '2021-01-01T09:00:00',
   EndDateTime: '2021-01-01T10:00:00',
   suppressReason: [],
@@ -54,6 +56,9 @@ describe('dry-run', () => {
         AppointmentTime: '9AM',
         AppointmentDay: 'Friday (1 Jan)',
         StartDateTime: '9AM Friday (1 Jan)',
+        firstServices: 'Service 2',
+        firstStaffName: 'Ann',
+        followUps: [],
       })
     )
     expect(message).toBe('Hi Ann, reminder for your 9AM appointment Friday (1 Jan).')
@@ -68,6 +73,9 @@ describe('dry-run', () => {
           AppointmentTime: 'x',
           AppointmentDay: 'y',
           StartDateTime: 'x',
+          firstServices: 'x',
+          firstStaffName: 'y',
+          followUps: [],
         }
       ).pipe(Effect.flip)
     )
@@ -78,9 +86,37 @@ describe('dry-run', () => {
     const report = await Effect.runPromise(
       buildDryRunReport([sendable(1, 'c1'), suppressed(2, 'c9')], [clientApi], TEMPLATE)
     )
-    expect(report).toContain('1 to send, 1 suppressed')
+    expect(report).toContain('1 to send (1 appointments), 1 suppressed')
     expect(report).toContain('Hi Ann Bee, reminder for your 9AM appointment Friday (1 Jan).')
     expect(report).toContain('suppressed appointment 2 (client c9): Status')
+  })
+
+  it('groups multiple services for one client into a single message', async () => {
+    const GROUPED_TEMPLATE =
+      'Hi <%- clientDisplayName %>, reminder for your <%- firstServices %> with <%- firstStaffName %> starting at <%= AppointmentTime %> <%= AppointmentDay %>.<% followUps.forEach(function(f) { %> Following after your appointments with <%- f.prevStaffName %>, you have <%- f.services %> with <%- f.staffName %>.<% }); %>'
+    const tamara = { ...sendable(1, 'c1'), StaffName: 'Tamara', ServiceName: 'Service One' }
+    const tamara2 = {
+      ...sendable(2, 'c1'),
+      StaffName: 'Tamara',
+      ServiceName: 'Service Two',
+      StartDateTime: '2021-01-01T13:00:00',
+      EndDateTime: '2021-01-01T14:00:00',
+    }
+    const hannah = {
+      ...sendable(3, 'c1'),
+      StaffName: 'Hannah',
+      ServiceName: 'Service Three',
+      StartDateTime: '2021-01-01T14:00:00',
+      EndDateTime: '2021-01-01T15:00:00',
+    }
+    const report = await Effect.runPromise(
+      buildDryRunReport([tamara, tamara2, hannah], [clientApi], GROUPED_TEMPLATE)
+    )
+    expect(report).toContain('1 to send (3 appointments)')
+    expect(report).toContain('Service One and Service Two with Tamara')
+    expect(report).toContain(
+      'Following after your appointments with Tamara, you have Service Three with Hannah.'
+    )
   })
 
   it('falls back to the default name for unknown clients', async () => {
@@ -110,6 +146,9 @@ describe('dry-run', () => {
         AppointmentTime: '10:30AM',
         AppointmentDay: 'Friday (1 Jan)',
         StartDateTime: '10:30AM Friday (1 Jan)',
+        firstServices: 'Signature Facial',
+        firstStaffName: 'Tamara',
+        followUps: [],
       })
     )
     expect(message).toContain("Hi Maria O'Bryne,")

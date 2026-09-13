@@ -54,13 +54,73 @@ const staffFixture = (id: number, display: string): ScheduleStaff => ({
 })
 
 describe('effect pipeline', () => {
-  it('builds and suppresses reminders without I/O', () => {
+  it('builds reminders without ClientId suppression (grouped downstream)', () => {
     const outputs = buildReminderOutputs([staffFixture(1, 'Ann')])
     expect(outputs).toHaveLength(2)
-    // sorted by start, second shares ClientId with previous -> suppressed
+    // No more per-appointment ClientId suppression: both stay sendable
+    // unless Status filters them. Second is Cancelled -> Status only.
     expect(outputs[0]?.suppressReason).toEqual([])
-    expect(outputs[1]?.suppressReason).toContain('Status')
-    expect(outputs[1]?.suppressReason).toContain('ClientId')
+    expect(outputs[1]?.suppressReason).toEqual(['Status'])
+    expect(outputs[0]?.StaffName).toBe('Ann')
+  })
+
+  it('groups same-client appointments into one plan with staff blocks', async () => {
+    const { buildClientPlans, formatServiceList } = await import('../src/effect/pipeline.js')
+    const outputs = buildReminderOutputs([staffFixture(1, 'Tamara')])
+    // Make both Booked so they group: second fixture appt is Cancelled by default.
+    const booked = outputs.map((o) => ({ ...o, Status: 'Booked', suppressReason: [] as string[] }))
+    const plans = buildClientPlans(booked)
+    expect(plans).toHaveLength(1)
+    expect(plans[0]?.blocks).toHaveLength(1)
+    expect(plans[0]?.blocks[0]?.staffName).toBe('Tamara')
+    expect(formatServiceList(['A', 'B', 'C'])).toBe('A, B and C')
+  })
+
+  it('splits Tamara -> Hannah into two blocks for the follow-up line', async () => {
+    const { buildClientPlans } = await import('../src/effect/pipeline.js')
+    const tamaraHannah = [
+      {
+        Id: 1,
+        StaffId: 't (Tamara)',
+        StaffName: 'Tamara',
+        ClientId: 'c1',
+        Status: 'Booked',
+        SessionTypeId: 1,
+        ServiceName: 'Service One',
+        StartDateTime: '2021-01-01T12:00:00',
+        EndDateTime: '2021-01-01T13:00:00',
+        suppressReason: [],
+      },
+      {
+        Id: 2,
+        StaffId: 't (Tamara)',
+        StaffName: 'Tamara',
+        ClientId: 'c1',
+        Status: 'Booked',
+        SessionTypeId: 2,
+        ServiceName: 'Service Two',
+        StartDateTime: '2021-01-01T13:00:00',
+        EndDateTime: '2021-01-01T14:00:00',
+        suppressReason: [],
+      },
+      {
+        Id: 3,
+        StaffId: 'h (Hannah)',
+        StaffName: 'Hannah',
+        ClientId: 'c1',
+        Status: 'Booked',
+        SessionTypeId: 3,
+        ServiceName: 'Service Three',
+        StartDateTime: '2021-01-01T14:00:00',
+        EndDateTime: '2021-01-01T15:00:00',
+        suppressReason: [],
+      },
+    ]
+    const plans = buildClientPlans(tamaraHannah)
+    expect(plans).toHaveLength(1)
+    expect(plans[0]?.blocks).toHaveLength(2)
+    expect(plans[0]?.blocks[0]?.services).toEqual(['Service One', 'Service Two'])
+    expect(plans[0]?.blocks[1]?.services).toEqual(['Service Three'])
   })
 
   it('fails typed when token is missing via layers (no HTTP)', async () => {

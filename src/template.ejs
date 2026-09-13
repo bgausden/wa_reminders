@@ -1,6 +1,9 @@
 Hi <%- clientDisplayName %>,
 
-This is a reminder for your <%= AppointmentTime %> appointment <%= AppointmentDay %> at Glow.
+This is a reminder for your <%- firstServices %> with <%- firstStaffName %> starting at <%= AppointmentTime %> <%= AppointmentDay %> at Glow.
+<% followUps.forEach(function(f) { %>
+Following after your appointments with <%- f.prevStaffName %>, you have <%- f.services %> with <%- f.staffName %>.
+<% }); %>
 
 Please note that if your appointment is for laser treatment, please ensure you have shaved prior to your appointment.
 

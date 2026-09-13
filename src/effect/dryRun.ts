@@ -6,7 +6,14 @@ import { DEFAULT_CLIENT_DISPLAY_NAME } from '../constants.js'
 import { formatAppointmentParts, formatAppointmentTime } from '../formatAppointmentTime.js'
 import { GetClientsResponseSchema } from './MbSchemas.js'
 import { DryRunError } from './mbErrors.js'
-import { mainEffectLayered, type ReminderOutput } from './pipeline.js'
+import {
+  buildClientPlans,
+  firstName,
+  formatServiceList,
+  mainEffectLayered,
+  type ClientPlan,
+  type ReminderOutput,
+} from './pipeline.js'
 
 type DryRunClient = Schema.Schema.Type<typeof GetClientsResponseSchema>['Clients'][number]
 
@@ -23,20 +30,51 @@ export const loadTemplate = (file = TEMPLATE_PATH): Effect.Effect<string, DryRun
     catch: (cause) => toDryRunError('dry-run.load-template', cause),
   })
 
+export interface ReminderTemplateData {
+  clientDisplayName: string
+  AppointmentTime: string
+  AppointmentDay: string
+  /** Legacy combined form (`4PM tomorrow (Monday)`); kept for custom templates. */
+  StartDateTime: string
+  /** `Laser A and Facial` for the first staff block. */
+  firstServices: string
+  /** First name of the first staff block, e.g. `Tamara`. */
+  firstStaffName: string
+  /** One entry per later staff block, in chronological order. */
+  followUps: Array<{ staffName: string; services: string; prevStaffName: string }>
+}
+
 export const renderReminder = (
   template: string,
-  data: {
-    clientDisplayName: string
-    AppointmentTime: string
-    AppointmentDay: string
-    /** Legacy combined form (`4PM tomorrow (Monday)`); kept for custom templates. */
-    StartDateTime: string
-  }
+  data: ReminderTemplateData
 ): Effect.Effect<string, DryRunError> =>
   Effect.try({
-    try: () => ejs.render(template, data),
+    try: () => {
+      const defaults = { firstServices: '', firstStaffName: '', followUps: [] }
+      return ejs.render(template, Object.assign({}, defaults, data))
+    },
     catch: (cause) => toDryRunError('dry-run.render', cause),
   })
+
+export const planTemplateData = (
+  plan: ClientPlan
+): Omit<ReminderTemplateData, 'clientDisplayName'> => {
+  const { time, day } = formatAppointmentParts(plan.firstStartDateTime)
+  const first = plan.blocks[0]
+  const followUps = plan.blocks.slice(1).map((block, i) => ({
+    staffName: firstName(block.staffName),
+    services: formatServiceList(block.services),
+    prevStaffName: firstName(plan.blocks[i]?.staffName ?? first?.staffName ?? ''),
+  }))
+  return {
+    AppointmentTime: time,
+    AppointmentDay: day,
+    StartDateTime: formatAppointmentTime(plan.firstStartDateTime),
+    firstServices: formatServiceList(first?.services ?? []),
+    firstStaffName: firstName(first?.staffName ?? ''),
+    followUps,
+  }
+}
 
 const clientDisplayName = (
   clients: ReadonlyArray<DryRunClient>,
@@ -49,7 +87,7 @@ const clientDisplayName = (
 }
 
 // Pure assembly wrapped in Effect only because rendering can fail.
-// Rendered messages first, suppressed appointments listed after.
+// One rendered message per client; suppressed appointments listed after.
 export const buildDryRunReport = (
   outputs: ReadonlyArray<ReminderOutput>,
   clients: ReadonlyArray<DryRunClient>,
@@ -57,19 +95,23 @@ export const buildDryRunReport = (
 ): Effect.Effect<string, DryRunError> =>
   Effect.gen(function* () {
     const lines: Array<string> = []
-    const sendable = outputs.filter((o) => o.suppressReason.length === 0)
+    const plans = buildClientPlans(outputs)
     const suppressed = outputs.filter((o) => o.suppressReason.length > 0)
+    const sendableCount = plans.reduce((n, p) => n + p.appointmentIds.length, 0)
 
-    lines.push(`DRY RUN — ${sendable.length} to send, ${suppressed.length} suppressed`, '')
-    for (const output of sendable) {
-      const { time, day } = formatAppointmentParts(output.StartDateTime)
+    lines.push(`DRY RUN — ${plans.length} to send (${sendableCount} appointments), ${suppressed.length} suppressed`, '')
+    for (const plan of plans) {
+      const data = planTemplateData(plan)
       const message = yield* renderReminder(template, {
-        clientDisplayName: clientDisplayName(clients, output.ClientId),
-        AppointmentTime: time,
-        AppointmentDay: day,
-        StartDateTime: formatAppointmentTime(output.StartDateTime),
+        clientDisplayName: clientDisplayName(clients, plan.clientId),
+        ...data,
       })
-      lines.push(`--- to client ${output.ClientId} (staff ${output.StaffId}) ---`, message, '')
+      const firstBlock = plan.blocks[0]
+      lines.push(
+        `--- to client ${plan.clientId} (staff ${firstBlock?.staffName ?? ''}, appointments ${plan.appointmentIds.join(', ')}) ---`,
+        message,
+        ''
+      )
     }
     for (const output of suppressed) {
       lines.push(

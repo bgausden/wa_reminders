@@ -63,6 +63,18 @@ export const AppointmentSchema = Schema.Struct({
   Resources: Schema.NullOr(Schema.Array(Schema.Unknown)),
   // Live probe: null in 37/37 appointments. Nothing downstream reads it.
   AddOns: Schema.NullOr(Schema.Array(Schema.Unknown)),
+  // Service names: scheduleitems payloads vary — accept an inline
+  // SessionType object and/or a flat ServiceName when present.
+  // Both optional so legacy fixtures without them still decode.
+  ServiceName: Schema.optional(Schema.NullOr(Schema.String)),
+  SessionType: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        Name: Schema.NullOr(Schema.String),
+        Id: Schema.optional(Schema.Number),
+      })
+    )
+  ),
 })
 
 export const StaffScheduleItemsSchema = Schema.Struct({
@@ -99,6 +111,27 @@ export const GetClientsResponseSchema = Schema.Struct({
 
 export const TokenResponseSchema = Schema.Struct({
   AccessToken: Schema.String,
+})
+
+// Session-type catalogue for resolving SessionTypeId -> service name.
+// Fetched via GET site/sessiontypes; kept separate so a lookup
+// failure never blocks reminders (we fall back to `Session <id>`).
+export const SessionTypeSchema = Schema.Struct({
+  Id: Schema.Number,
+  Name: Schema.NullOr(Schema.String),
+})
+
+export const SessionTypesResponseSchema = Schema.Struct({
+  SessionTypes: Schema.Array(SessionTypeSchema),
+  // Needed to page through the full catalogue (prod has 373 types).
+  PaginationResponse: Schema.optional(
+    Schema.Struct({
+      TotalResults: Schema.Number,
+      RequestedLimit: Schema.optional(Schema.Number),
+      RequestedOffset: Schema.optional(Schema.Number),
+      PageSize: Schema.optional(Schema.Number),
+    })
+  ),
 })
 
 // One helper for every boundary: decode or fail typed.

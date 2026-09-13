@@ -4,6 +4,7 @@ const SITES_ENDPOINT = '/site/sites'
 const LOCATIONS_ENDPOINT = '/site/locations'
 const STAFF_ENDPOINT = '/staff/staff'
 const CLIENTS_ENDPOINT = '/client/clients'
+const SESSION_TYPES_ENDPOINT = '/site/sessiontypes'
 export {
   USER_TOKEN_ENDPOINT,
   SCHEDULE_ITEMS_ENDPOINT,
@@ -11,4 +12,5 @@ export {
   LOCATIONS_ENDPOINT,
   STAFF_ENDPOINT,
   CLIENTS_ENDPOINT,
+  SESSION_TYPES_ENDPOINT,
 }
