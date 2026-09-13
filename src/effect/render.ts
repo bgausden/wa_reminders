@@ -1,6 +1,7 @@
 import ejs from 'ejs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Effect, Schema } from 'effect'
 import { DEFAULT_CLIENT_DISPLAY_NAME } from '../constants.js'
 import { formatAppointmentParts, formatAppointmentTime } from '../formatAppointmentTime.js'
@@ -25,12 +26,22 @@ import { formatLongDate, formatLongDateTime } from '../targetDay.js'
 
 type RenderClient = ReminderClient
 
-export const TEMPLATE_PATH = path.resolve('src/template.ejs')
+// The template ships with the build: `scripts/copy-template.mjs` (part of
+// `npm run build`) puts it beside the emitted output, so the shipped copy
+// is `dist/template.ejs` next to `dist/effect/render.js`. Resolved from
+// this module rather than the working directory, because the hosted app
+// runs with no `src/` folder and with a cwd that is not the repo. From
+// source (`tsx src/index.ts`) the same path is `src/template.ejs`, so the
+// CLI is unchanged.
+export const TEMPLATE_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'template.ejs'
+)
 
 const toRenderError = (op: string, cause: unknown) => new DryRunError({ op, cause })
 
 // Template source is a file so copy stays in sync with template.ejs.
-// Resolved from cwd: run via `npm run dry-run` from the repo root.
 // The only impure part of this module — it just hands the template
 // source to the pure renderers below, which never touch the disk.
 export const loadTemplate = (file = TEMPLATE_PATH): Effect.Effect<string, DryRunError> =>
