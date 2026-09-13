@@ -23,6 +23,43 @@
             "type": "node",
         },
         {
+            "name": "Dry Run (development)",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "NODE_ENV": "development",
+            },
+            "runtimeExecutable": "tsx",
+            "args": [
+                "${workspaceFolder}/src/index.ts",
+                "--dry-run"
+            ],
+            "skipFiles": [
+                "<node_internals>/**",
+                "<node_modules>/**"
+            ],
+            "type": "node",
+        },
+        {
+            "name": "Dry Run (production)",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "NODE_ENV": "production",
+            },
+            "runtimeExecutable": "tsx",
+            "args": [
+                "${workspaceFolder}/src/index.ts",
+                "--dry-run",
+                "--env=production"
+            ],
+            "skipFiles": [
+                "<node_internals>/**",
+                "<node_modules>/**"
+            ],
+            "type": "node",
+        },
+        {
             "name": "Vitest Tests",
             "args": [
                 "run"

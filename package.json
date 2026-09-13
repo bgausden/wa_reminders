@@ -7,7 +7,9 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "dry-run": "tsx src/index.ts --dry-run",
+    "dry-run:prod": "tsx src/index.ts --dry-run --env=production"
   },
   "author": "Barry Gausden",
   "license": "ISC",
