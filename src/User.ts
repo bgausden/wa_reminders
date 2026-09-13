@@ -203,7 +203,5 @@ async function getStaff(staffIds?: Array<Staff>): Promise<StaffResponse> {
 
 export { IUser, User, StaffResponse, Staff, getStaff }
 
-await User.init()
-
 // Debugging
 //log((await getStaff()).StaffMembers.filter((staff) => staff.LastName === 'Gausden'))

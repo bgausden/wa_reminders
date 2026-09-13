@@ -23,17 +23,12 @@
             "type": "node",
         },
         {
-            "name": "Mocha Tests",
+            "name": "Vitest Tests",
             "args": [
-                //"-u",
-                //"tdd",
-                //"--timeout",
-                //"999999",
-                //"--colors",
-                //"${workspaceFolder}/test"
+                "run"
             ],
             "internalConsoleOptions": "openOnSessionStart",
-            "program": "${workspaceFolder}/node_modules/mocha/bin/mocha.js",
+            "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
