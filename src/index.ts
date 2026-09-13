@@ -50,7 +50,7 @@ try {
   targetDay = parseTargetDay(getTargetDayArg(process.argv), invokedAt)
 } catch (error) {
   console.error(error instanceof Error ? error.message : error)
-  console.error('Usage: node dist/index.js [--dry-run] [--date <offset-or-date>]')
+  console.error('Usage: node dist/index.js [--dry-run] [--html] [--date <offset-or-date>]')
   process.exit(1)
 }
 console.log(
@@ -58,13 +58,15 @@ console.log(
 )
 
 // `npm run dry-run`: full pipeline, messages rendered to console + file,
-// nothing sent.
+// nothing sent. `--html` additionally writes an HTML report with WhatsApp
+// click-to-chat links; the text report and console output stay link-free.
 if (process.argv.includes('--dry-run')) {
-  const runnable = dryRunEffect(undefined, { targetDay, invokedAt }).pipe(
+  const wantHtml = process.argv.includes('--html')
+  const runnable = dryRunEffect(undefined, { targetDay, invokedAt, html: wantHtml }).pipe(
     Effect.provide(Live),
     Effect.catchAll((error: unknown) => {
       logFailure(error)
-      return Effect.succeed({ report: '', file: '', outputs: [], clients: [] })
+      return Effect.succeed({ report: '', file: '', html: '', htmlFile: '', outputs: [], clients: [] })
     }),
     Logger.withMinimumLogLevel(LogLevel.Info),
     Effect.provide(Logger.pretty)
@@ -74,6 +76,9 @@ if (process.argv.includes('--dry-run')) {
   if (result.report.length > 0) {
     console.log(result.report)
     console.log(`dry-run written to ${result.file}`)
+    if (wantHtml && result.htmlFile.length > 0) {
+      console.log(`dry-run html written to ${result.htmlFile}`)
+    }
   }
 } else {
   const runnable = mainEffectLayeredFor(targetDay).pipe(

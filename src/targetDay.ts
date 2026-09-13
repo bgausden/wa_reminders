@@ -244,7 +244,7 @@ export function getTargetDayArg(argv: ReadonlyArray<string> = process.argv): str
   return undefined
 }
 
-const BOOLEAN_FLAGS = new Set(['--dry-run', '--env=production'])
+const BOOLEAN_FLAGS = new Set(['--dry-run', '--html', '--env=production'])
 
 /**
  * Tokens in argv (after node + script) that are not a recognized flag or a
