@@ -10,6 +10,7 @@ import {
   buildWhatsAppLink,
   clientPhoneForWhatsApp,
   escapeHtml,
+  formatPhoneForDisplay,
 } from './whatsapp.js'
 import {
   buildClientPlans,
@@ -107,6 +108,16 @@ const findClient = (
   clientId: string
 ): DryRunClient | undefined => clients.find((c) => c.Id === clientId)
 
+// Header phones: `mobile +<digits>, home +<digits>` with a space before
+// each number and contiguous `+digits` (no internal spaces) so a
+// double-click selects the whole number for cut-paste. Missing numbers
+// render as `-`.
+const clientPhonesHeader = (client: DryRunClient | undefined): string => {
+  const mobile = formatPhoneForDisplay(client?.MobilePhone) ?? '-'
+  const home = formatPhoneForDisplay(client?.HomePhone) ?? '-'
+  return `mobile ${mobile}, home ${home}`
+}
+
 // Pure assembly wrapped in Effect only because rendering can fail.
 // One rendered message per client; suppressed appointments listed after.
 // Optional context prepends an invocation/target banner line.
@@ -142,7 +153,7 @@ export const buildDryRunReport = (
       })
       const firstBlock = plan.blocks[0]
       lines.push(
-        `--- to client ${plan.clientId} (staff ${firstBlock?.staffName ?? ''}, appointments ${plan.appointmentIds.join(', ')}) ---`,
+        `--- to client ${plan.clientId} (staff ${firstBlock?.staffName ?? ''}, appointments ${plan.appointmentIds.join(', ')}, ${clientPhonesHeader(findClient(clients, plan.clientId))}) ---`,
         message,
         ''
       )
@@ -208,7 +219,7 @@ export const buildDryRunHtmlReport = (
           ? `<a href="${escapeHtml(buildWhatsAppLink(phone, message))}" target="_blank" rel="noopener noreferrer">Send via WhatsApp to ${escapeHtml(displayName)} (${escapeHtml(phone)})</a>`
           : `<span class="missing">No mobile number — manual lookup needed</span>`
       sections.push(
-        `<section class="card">\n<h2>to client ${escapeHtml(plan.clientId)} (staff ${escapeHtml(firstBlock?.staffName ?? '')}, appointments ${escapeHtml(plan.appointmentIds.join(', '))})</h2>\n<p>${link}</p>\n<pre>${escapeHtml(message)}</pre>\n</section>`
+        `<section class="card">\n<h2>to client ${escapeHtml(plan.clientId)} (staff ${escapeHtml(firstBlock?.staffName ?? '')}, appointments ${escapeHtml(plan.appointmentIds.join(', '))}, ${escapeHtml(clientPhonesHeader(findClient(clients, plan.clientId)))})</h2>\n<p>${link}</p>\n<pre>${escapeHtml(message)}</pre>\n</section>`
       )
     }
     const suppressedBlock =

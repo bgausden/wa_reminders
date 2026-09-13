@@ -58,6 +58,17 @@ export const clientPhoneForWhatsApp = (
   return null
 }
 
+/**
+ * Display form with a leading `+` (`+85291234567`) so a double-click
+ * selects the whole number for cut-paste. Contiguous digits (no
+ * internal spaces/dashes) for the same reason. Returns null when
+ * there are no usable digits.
+ */
+export const formatPhoneForDisplay = (raw: string | null | undefined): string | null => {
+  const normalized = normalizePhoneForWhatsApp(raw)
+  return normalized === null ? null : `+${normalized}`
+}
+
 /** Build a `wa.me` click-to-chat URL for pre-filled digits + message. */
 export const buildWhatsAppLink = (digits: string, message: string): string =>
   `https://wa.me/${digits}?text=${encodeURIComponent(message)}`
