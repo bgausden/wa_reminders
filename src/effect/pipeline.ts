@@ -34,6 +34,8 @@ export interface ReminderOutput {
   IsLaser?: boolean
   /** True when the booking is a laser consultation — vetoes the shave line. */
   IsLaserConsultation?: boolean
+  /** True when the booking is in the Services group Tanning (spray tan). */
+  IsTanning?: boolean
   /** Resolved service name, e.g. `Signature Facial`. */
   ServiceName: string
   StartDateTime: string
@@ -55,6 +57,8 @@ export interface ClientPlan {
   appointmentIds: Array<number>
   /** True when any appointment in the plan is in the Services group Laser. */
   hasLaser: boolean
+  /** True when any appointment in the plan is in the Services group Tanning. */
+  hasTanning: boolean
 }
 
 export type SessionTypeNames = ReadonlyMap<number, string> | Record<number, string>
@@ -74,6 +78,8 @@ export const LASER_PROGRAM_ID = 8
 export const LASER_SUBCATEGORY = 'Laser'
 /** ProgramId for Consultations — consultation bookings never need the shave line. */
 export const CONSULTATION_PROGRAM_ID = 13
+/** Session-type category for spray tan services (`Tanning`). */
+export const TANNING_CATEGORY = 'Tanning'
 
 // Lesson 5: keep this pure (no Effect, no I/O) so it is trivially testable.
 // Same logic as src/index.ts, extracted verbatim. Takes the decoded
@@ -185,6 +191,33 @@ export function isLaserBooking(
   return /^(laser|ipl)\b/i.test(name.trim())
 }
 
+/**
+ * True when a booking is spray-tan related.
+ * Primary signal: session-type Category == `Tanning` (the Mindbody
+ * service category holding all spray tan services). Fallback: service
+ * name contains `spray tan` — covers entries with a null Category
+ * in Mindbody. Unlike laser, there is no consultation veto: the prep
+ * note is informational for any tanning booking.
+ */
+export function isTanningBooking(
+  appointment: Pick<ScheduleAppointment, 'SessionTypeId' | 'ProgramId'> & {
+    ServiceName?: string | null
+    SessionType?: { Name?: string | null } | null
+  },
+  info?: SessionTypeInfoMap,
+  resolvedName?: string
+): boolean {
+  const detail = lookupSessionTypeInfo(appointment.SessionTypeId, info)
+  const cat = detail?.Category?.trim().toLowerCase()
+  if (cat === TANNING_CATEGORY.toLowerCase()) return true
+  const name =
+    resolvedName ??
+    (typeof appointment.ServiceName === 'string' && appointment.ServiceName.trim().length > 0
+      ? appointment.ServiceName
+      : appointment.SessionType?.Name ?? detail?.Name ?? '')
+  return /spray[\s-]?tan/i.test(name.trim())
+}
+
 export function resolveServiceName(
   appointment: ScheduleAppointment,
   sessionTypeNames?: SessionTypeNames
@@ -257,6 +290,7 @@ export function buildReminderOutputs(
             sessionTypeInfo,
             serviceName
           ),
+          IsTanning: isTanningBooking(appointment, sessionTypeInfo, serviceName),
           ServiceName: serviceName,
           StartDateTime: appointment.StartDateTime,
           EndDateTime: appointment.EndDateTime,
@@ -322,6 +356,7 @@ export function buildClientPlans(outputs: ReadonlyArray<ReminderOutput>): Client
       hasLaser:
         sorted.some((s) => s.IsLaser === true) &&
         !sorted.some((s) => s.IsLaserConsultation === true),
+      hasTanning: sorted.some((s) => s.IsTanning === true),
     })
   }
   return plans.sort((a, b) => (a.firstStartDateTime < b.firstStartDateTime ? -1 : 1))
