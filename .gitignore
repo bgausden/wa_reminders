@@ -2,3 +2,5 @@ node_modules
 .env.*
 dist
 dry-runs/
+local.settings.json
+.azure-stage/
