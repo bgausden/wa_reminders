@@ -104,6 +104,9 @@
   "include": [
     "./src/**/*",
   ],
+  "exclude": [
+    "./other_src/**/*"
+  ],
   "ts-node": {
     "esm": true,
   }

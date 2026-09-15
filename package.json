@@ -3,13 +3,16 @@
   "version": "0.0.1",
   "description": "Automated Whatsapp reminders for MBO",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/azureFunctionApp.js",
   "scripts": {
+    "build": "tsc --project tsconfig.json && node scripts/copy-template.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "dev": "tsx src/index.ts",
     "dry-run": "tsx src/index.ts --dry-run",
-    "dry-run:prod": "tsx src/index.ts --dry-run --env=production"
+    "dry-run:prod": "tsx src/index.ts --dry-run --env=production",
+    "start:azure": "func start --port 7071",
+    "deploy:azure:local": "pwsh -NoProfile -File ./scripts/deploy-local.ps1"
   },
   "author": "Barry Gausden",
   "license": "ISC",
@@ -25,6 +28,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@azure/functions": "^4.7.0",
     "axios": "^1.20.0",
     "debug": "^4.4.3",
     "dotenv": "^16.6.1",

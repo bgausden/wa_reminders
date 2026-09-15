@@ -1,0 +1,12 @@
+.vscode
+.git
+.agents
+test
+other_src
+docs
+dry-runs
+.env*
+local.settings.json
+*.log
+*.md
+**/*.map
