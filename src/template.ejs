@@ -1,15 +1,15 @@
 Hi <%- clientDisplayName %>,
 
 This is a reminder for your <%- firstServices %> with <%- firstStaffName %> starting at <%= AppointmentTime %> <%= AppointmentDay %> at Glow.
-<% followUps.forEach(function(f) { %>
+<% followUps.forEach(function(f) { -%>
 Following after your appointments with <%- f.prevStaffName %>, you have <%- f.services %> with <%- f.staffName %>.
-<% }); %>
-<% if (hasLaser) { %>
+<% }); -%>
+<% if (hasLaser) { -%>
 Please note that if your appointment is for laser treatment, please ensure you have shaved prior to your appointment.
-<% } %>
-<% if (hasTanning) { %>
+<% } -%>
+<% if (hasTanning) { -%>
 For spray tan appointments, please remember: for best results, complete hair removal and exfoliate thoroughly 24 hours before your appointment. Wear loose, dark clothing and open-toed shoes e.g. flip-flops or sandals.
-<% } %>
+<% } -%>
 
 Our address is:
 
