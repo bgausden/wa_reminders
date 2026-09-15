@@ -111,18 +111,19 @@ Omit `-ReportPassword` to leave the existing setting untouched.
 5. Expired/tampered cookie (edit it in devtools) — back to the plain
    sign-in form, no error text.
 
-Local `func start` note: the Core Tools worker on this box only accepts the
-Node on `PATH`, and 4.0.5801 rejects Node 24 — so serve locally under Node
-20 via fnm (system Node stays 24 for Azure, which runs Node 24 fine):
+Local `func start` note: Core Tools 4.14 (installed via
+`winget install Microsoft.Azure.FunctionsCoreTools`, which bypasses the
+broken npm postinstall download) serves on the system Node 24 with no
+version juggling:
 
 ```powershell
-fnm use 20   # installed via `winget install Schniz.fnm`; `fnm install 20` once
 $env:REPORT_PASSWORD='local-only-dev-password'
 func start --port 7071
 ```
 
-then `http://localhost:7071/api/smoke`. All five gate behaviours
-(anonymous form, wrong-password 401, grant + cookie, authed page, tampered
-cookie) were verified live this way. Upgrading Core Tools to 4.14 was
-tried and abandoned: its postinstall download fails on this machine
-(`chalk.red is not a function` masking a request error), so 4.0.5801 stays.
+then `http://localhost:7071/api/smoke`. The gate was verified live this
+way (anonymous form, wrong-password 401, grant + cookie, authed page,
+tampered cookie). Fallback if Core Tools ever rejects the system Node
+again: `fnm use 20` in the serving shell (`winget install Schniz.fnm`;
+`fnm install 20` once) — the compiled output targets ES2022 and runs
+unchanged under Node 20.
