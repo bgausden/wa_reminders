@@ -31,14 +31,18 @@ az functionapp create --resource-group wa-reminders-rg --name <unique-function-a
 
 ## Deploy from your workstation
 
+With pnpm, pass the script arguments directly — no `--` separator (unlike
+npm, pnpm forwards a `--` through to the script, where PowerShell rejects
+it as an ambiguous parameter name):
+
 ```powershell
-pnpm run deploy:azure:local -- -ResourceGroup wa-reminders-rg -FunctionAppName <unique-function-app-name>
+pnpm run deploy:azure:local -ResourceGroup wa-reminders-rg -FunctionAppName <unique-function-app-name>
 ```
 
 Or pass a subscription explicitly:
 
 ```powershell
-pnpm run deploy:azure:local -- -ResourceGroup wa-reminders-rg -FunctionAppName <unique-function-app-name> -SubscriptionId <subscription-id>
+pnpm run deploy:azure:local -ResourceGroup wa-reminders-rg -FunctionAppName <unique-function-app-name> -SubscriptionId <subscription-id>
 ```
 
 ## Runtime settings that matter
@@ -118,7 +122,7 @@ Deploy with it (prefer `$env:` so it stays out of shell history):
 
 ```powershell
 $env:REPORT_PASSWORD='one-good-password'
-pnpm run deploy:azure:local -- -ResourceGroup wa-reminders-rg -FunctionAppName <app> -ReportPassword $env:REPORT_PASSWORD
+pnpm run deploy:azure:local -ResourceGroup wa-reminders-rg -FunctionAppName <app> -ReportPassword $env:REPORT_PASSWORD
 ```
 
 Omit `-ReportPassword` to leave the existing setting untouched.
