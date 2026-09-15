@@ -69,7 +69,7 @@ Cost is expected to stay very low at this usage level, with storage only a few k
 29. As the owner, I want the hosted app to use the same pipeline and template as the CLI, so that the messages the team sends are the ones I tested locally.
 30. As the owner, I want the CLI (`npm run dry-run`) to keep working unchanged, so that I can still develop and test locally.
 31. As the owner, I want Mindbody credentials to live in Azure app settings and never in the repo, so that they aren't exposed to the team or to git.
-32. As the owner, I want the Azure pieces deployed from GitHub Actions on push, so that I'm not doing manual portal deploys.
+32. As the owner, I want the Azure pieces deployed from my workstation with the local deploy script, so that I'm not doing manual portal deploys and there's no CI pipeline to maintain for a single-operator app.
 33. As the owner, I want to know when a scheduled run failed, so that I'm not relying on the team to notice.
 34. As the owner, I want the page to warn visibly if the list is stale or the last run failed, so that a missed run is caught before the wrong messages go out.
 35. As the owner, I want hosting to cost a pound or two a month at most, so that this doesn't become a line item.
@@ -83,7 +83,7 @@ Cost is expected to stay very low at this usage level, with storage only a few k
 
 - **Azure Function app**, Linux, Flex Consumption plan, Node 24 with the v4 programming model. Storage and execution costs are expected to remain low at current volume.
 - **Blob storage** in a private container for the cached reports. The function reads the blob and returns it as `text/html`; the blob itself is never public.
-- **Deployed by GitHub Actions** on push to master, using a publish-profile secret, with Mindbody credentials and the report password as app settings.
+- **Deployed from the workstation** with `scripts/deploy-local.ps1` (local CI, no GitHub Actions workflow — decision recorded in #6), with Mindbody credentials and the report password as app settings.
 - **App settings**: Mindbody API key, site id, username, password, report password, storage connection, and Hong Kong timezone.
 
 ### Modules
