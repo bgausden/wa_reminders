@@ -81,9 +81,10 @@ export const renderReminder = (
   })
 
 export const planTemplateData = (
-  plan: ClientPlan
+  plan: ClientPlan,
+  now: Date = new Date()
 ): Omit<ReminderTemplateData, 'clientDisplayName'> => {
-  const { time, day } = formatAppointmentParts(plan.firstStartDateTime)
+  const { time, day } = formatAppointmentParts(plan.firstStartDateTime, now)
   const first = plan.blocks[0]
   const followUps = plan.blocks.slice(1).map((block, i) => ({
     staffName: firstName(block.staffName),
@@ -93,7 +94,7 @@ export const planTemplateData = (
   return {
     AppointmentTime: time,
     AppointmentDay: day,
-    StartDateTime: formatAppointmentTime(plan.firstStartDateTime),
+    StartDateTime: formatAppointmentTime(plan.firstStartDateTime, now),
     firstServices: formatServiceList(first?.services ?? []),
     firstStaffName: firstName(first?.staffName ?? ''),
     followUps,
@@ -149,6 +150,10 @@ export const buildDryRunReport = (
     const plans = buildClientPlans(outputs)
     const suppressed = outputs.filter((o) => o.suppressReason.length > 0)
     const sendableCount = plans.reduce((n, p) => n + p.appointmentIds.length, 0)
+    // Relative day labels ("tomorrow (Monday)") are computed against the
+    // invocation time, not the wall clock, so a report rendered later (or
+    // in a test with a fixed invokedAt) labels days consistently.
+    const now = context?.invokedAt ?? new Date()
 
     if (context?.targetDay) {
       const invoked = formatLongDateTime(context.invokedAt ?? new Date())
@@ -160,7 +165,7 @@ export const buildDryRunReport = (
     }
     lines.push(`DRY RUN — ${plans.length} to send (${sendableCount} appointments), ${suppressed.length} suppressed`, '')
     for (const plan of plans) {
-      const data = planTemplateData(plan)
+      const data = planTemplateData(plan, now)
       const message = yield* renderReminder(template, {
         clientDisplayName: clientDisplayName(clients, plan.clientId),
         ...data,
@@ -200,8 +205,9 @@ export const buildDryRunHtmlReport = (
     const summary = `DRY RUN — ${plans.length} to send (${sendableCount} appointments), ${suppressed.length} suppressed`
 
     const sections: Array<string> = []
+    const now = context?.invokedAt ?? new Date()
     for (const plan of plans) {
-      const data = planTemplateData(plan)
+      const data = planTemplateData(plan, now)
       const displayName = clientDisplayName(clients, plan.clientId)
       const message = yield* renderReminder(template, { clientDisplayName: displayName, ...data })
       const firstBlock = plan.blocks[0]
