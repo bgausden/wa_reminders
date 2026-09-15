@@ -8,6 +8,10 @@ import { makeReportStoreTest, type StoredReport } from '../src/report/store.js'
 import { scheduledTargetDay } from '../src/targetDay.js'
 import { createReportHandler } from '../src/azureReport.js'
 
+const brokenNetwork = Layer.fail('network must stay unbuilt') as unknown as Parameters<
+  typeof createReportHandler
+>[0]['network']
+
 const request = (qs: string): HttpRequest =>
   ({
     method: 'GET',
@@ -117,6 +121,19 @@ describe('createReportHandler', () => {
     expect(page).toContain('https://wa.me/85291234567?text=hi')
     expect(page).toContain('name="day"')
     expect(page).not.toContain('not the scheduled morning list')
+  })
+
+  it('serves the scheduled list without building the network layers', async () => {
+    // Regression: the merged layers used to build AppConfig on every
+    // request, so the bookmark 503'd until Mindbody credentials existed.
+    const label = scheduledTargetDay(new Date()).label
+    const handle = createReportHandler({
+      store: makeReportStoreTest({ scheduled: fragment(label) }),
+      network: brokenNetwork,
+    })
+    const res = await handle(request(''), context())
+    expect(res.status).toBe(200)
+    expect(String(res.body)).toContain('Reminders for')
   })
 
   it('serves a cached day for its own label', async () => {

@@ -62,20 +62,20 @@ const liveLayers: ReportHandlerLayers = {
  * Behind the password gate (`createGatedHandler`) at the edge.
  */
 export function createReportHandler(layers: ReportHandlerLayers = liveLayers): HttpHandler {
-  const Live = Layer.mergeAll(layers.store, layers.network)
-
   return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
     const now = new Date()
     const spec = request.query.get('day')
     try {
       if (spec === null || spec.trim() === '') {
+        // Storage reads only: the network layers stay unbuilt, so this
+        // path serves with no Mindbody configuration at all.
         const page = await Effect.runPromise(
           Effect.gen(function* () {
             const store = yield* ReportStore
             const stored = yield* store.readScheduled()
             const runStatus = yield* store.readRunStatus()
             return renderScheduledPage(stored, runStatus, now, [renderDayForm(null)])
-          }).pipe(Effect.provide(Live))
+          }).pipe(Effect.provide(layers.store))
         )
         return html(200, page)
       }
@@ -95,7 +95,7 @@ export function createReportHandler(layers: ReportHandlerLayers = liveLayers): H
           })
           const store = yield* ReportStore
           return { stored: report, runStatus: yield* store.readRunStatus() }
-        }).pipe(Effect.provide(Live))
+        }).pipe(Effect.provide(Layer.mergeAll(layers.store, layers.network)))
       )
       const page = renderDayPage({ stored, targetDay, now, spec, runStatus })
       if (request.query.get('download') === '1') {
