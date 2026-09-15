@@ -1,6 +1,15 @@
-# Local Azure deployment for issue #6
+# Local Azure deployment
 
-This project supports a local workstation deployment path for the Azure Function smoke test without using GitHub Actions.
+This project supports a local workstation deployment path for the Azure
+Function smoke test without using GitHub Actions.
+
+Current scope: the deployed app is still the `smokeHttp` page only
+(`src/azureFunctionApp.ts` + `src/azureSmoke.ts`) — no Mindbody calls, no
+client data — now behind the shared-password gate (#10). The remaining
+hosted-report modules (`src/report/*`, `src/effect/generate.ts`) exist and
+are unit-tested (`pnpm test`), but the blob store and timer/serve adapters
+(#11, #12) are not built yet, so nothing beyond the gated smoke page
+reaches Azure.
 
 ## Prereqs
 
@@ -25,13 +34,13 @@ az functionapp create --resource-group wa-reminders-rg --name <unique-function-a
 ## Deploy from your workstation
 
 ```powershell
-npm run deploy:azure:local -- -ResourceGroup wa-reminders-rg -FunctionAppName <unique-function-app-name>
+pnpm run deploy:azure:local -- -ResourceGroup wa-reminders-rg -FunctionAppName <unique-function-app-name>
 ```
 
 Or pass a subscription explicitly:
 
 ```powershell
-npm run deploy:azure:local -- -ResourceGroup wa-reminders-rg -FunctionAppName <unique-function-app-name> -SubscriptionId <subscription-id>
+pnpm run deploy:azure:local -- -ResourceGroup wa-reminders-rg -FunctionAppName <unique-function-app-name> -SubscriptionId <subscription-id>
 ```
 
 ## Runtime settings that matter
@@ -72,4 +81,42 @@ After deployment, open the Function App hostname and confirm the page shows:
 
 ## Notes
 
-This is intentionally the minimal issue #6 deployment spike: no Mindbody calls, no client data, no auth, just a live Azure Function proving the platform path and Hong Kong time resolution.
+This started as the minimal deployment spike: no Mindbody calls, no client
+data, just a live Azure Function proving the platform path and Hong
+Kong time resolution, now with the shared-password gate (#10) in front.
+That is still what is deployed — see `readme.md` for
+the current repo state and `docs/prd-hosted-reminders.md` for what comes next.
+
+## Report password
+
+The gate reads the shared password from the `REPORT_PASSWORD` app setting
+and fails closed (login page + 500, nothing served) when it is blank.
+Deploy with it (prefer `$env:` so it stays out of shell history):
+
+```powershell
+$env:REPORT_PASSWORD='one-good-password'
+pnpm run deploy:azure:local -- -ResourceGroup wa-reminders-rg -FunctionAppName <app> -ReportPassword $env:REPORT_PASSWORD
+```
+
+Omit `-ReportPassword` to leave the existing setting untouched.
+
+## Morning test (#10 live check)
+
+1. Open the Function App hostname — expect the sign-in form, not content.
+2. Wrong password — expect the form again with "Wrong password, try again."
+3. Correct password — expect a redirect to `/` showing the smoke page
+   (HK time + target day). The `wa_session` cookie is HttpOnly, Secure,
+   SameSite=Lax, ~30 days.
+4. Revisit with the cookie — the page serves directly, no Mindbody calls.
+5. Expired/tampered cookie (edit it in devtools) — back to the plain
+   sign-in form, no error text.
+
+Local `func start` note: Core Tools 4.0.5801 on this workstation rejects
+Node 24, so local serving isn't possible here — test against Azure, whose
+Flex app runs Node 24 (see #6). When local serving works again, the gate
+reads the same setting from `local.settings.json` (gitignored, never
+deployed):
+
+```json
+{ "Values": { "REPORT_PASSWORD": "local-only-dev-password" } }
+```

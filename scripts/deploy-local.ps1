@@ -8,6 +8,13 @@ param(
 
     [string]$SubscriptionId,
 
+    # Shared report password for the hosted page gate (#10). Passed as an
+    # argument (not committed anywhere) and applied as the REPORT_PASSWORD
+    # app setting. Omit to leave the existing setting untouched. Prefer
+    # reading it from a vault/env var at call time rather than typing it
+    # into shell history, e.g. -ReportPassword $env:REPORT_PASSWORD.
+    [string]$ReportPassword,
+
     [switch]$SkipBuild
 )
 
@@ -52,6 +59,9 @@ try {
         'NODE_ENV=production',
         'TZ=Asia/Hong_Kong'
     )
+    if ($ReportPassword -ne '') {
+        $settings += "REPORT_PASSWORD=$ReportPassword"
+    }
 
     if ($PSCmdlet.ShouldProcess("Function App $FunctionAppName", 'Apply Azure function settings')) {
         az functionapp config appsettings set `
