@@ -10,7 +10,7 @@
             "cwd": "${workspaceFolder}",
             "env": {
                 "NODE_ENV": "development",
-                "DEBUG": "wa_reminders:*",
+                "DEBUG": "wa_reminders:*"
             },
             "runtimeExecutable": "tsx",
             "args": [
@@ -20,14 +20,14 @@
                 "<node_internals>/**",
                 "<node_modules>/**"
             ],
-            "type": "node",
+            "type": "node"
         },
         {
             "name": "Dry Run (development)",
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "env": {
-                "NODE_ENV": "development",
+                "NODE_ENV": "development"
             },
             "runtimeExecutable": "tsx",
             "args": [
@@ -38,14 +38,14 @@
                 "<node_internals>/**",
                 "<node_modules>/**"
             ],
-            "type": "node",
+            "type": "node"
         },
         {
             "name": "Dry Run (production)",
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "env": {
-                "NODE_ENV": "production",
+                "NODE_ENV": "production"
             },
             "runtimeExecutable": "tsx",
             "args": [
@@ -57,7 +57,7 @@
                 "<node_internals>/**",
                 "<node_modules>/**"
             ],
-            "type": "node",
+            "type": "node"
         },
         {
             "name": "Vitest Tests",
@@ -86,7 +86,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "type": "node",
+            "type": "node"
         },
         {
             "name": "Launch Functional Version",
@@ -102,7 +102,15 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
+            "type": "node"
+        },
+        {
+            "name": "Attach to Node Functions",
             "type": "node",
+            "request": "attach",
+            "restart": true,
+            "port": 9229,
+            "preLaunchTask": "func: host start"
         }
     ]
 }
