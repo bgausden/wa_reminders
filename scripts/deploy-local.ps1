@@ -21,6 +21,15 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Native commands (az/npm/func/pnpm) do NOT respect $ErrorActionPreference.
+# Check $LASTEXITCODE explicitly so a failed install can never silently
+# roll into a publish of a broken bundle.
+function Assert-NativeSuccess([string]$Step) {
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Step failed with exit code $LASTEXITCODE."
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 Push-Location $repoRoot
 try {
@@ -35,6 +44,7 @@ try {
     if ($SubscriptionId) {
         if ($PSCmdlet.ShouldProcess("subscription $SubscriptionId", 'Set Azure subscription context')) {
             az account set --subscription $SubscriptionId | Out-Null
+            Assert-NativeSuccess 'az account set'
         }
     }
 
@@ -45,7 +55,9 @@ try {
             # lockfile here, resolves fresh, and overlays an npm-style tree
             # onto the pnpm one — do not use it.
             pnpm install --frozen-lockfile
+            Assert-NativeSuccess 'pnpm install'
             pnpm run build
+            Assert-NativeSuccess 'pnpm run build'
         }
     }
 
@@ -68,6 +80,7 @@ try {
             --resource-group $ResourceGroup `
             --name $FunctionAppName `
             --settings $settings | Out-Null
+        Assert-NativeSuccess 'az functionapp config appsettings set'
     }
 
     if ($PSCmdlet.ShouldProcess("storage container 'reports'", 'Create private blob container for the scheduled list')) {
@@ -82,10 +95,12 @@ try {
             --name $FunctionAppName `
             --query "[?name=='AzureWebJobsStorage'].value | [0]" `
             --output tsv
+        Assert-NativeSuccess 'az functionapp config appsettings list'
         if ([string]::IsNullOrWhiteSpace($storageConnection)) {
             throw 'AzureWebJobsStorage app setting is empty — the function app has no storage to hold the reports container.'
         }
         az storage container create --name 'reports' --connection-string $storageConnection | Out-Null
+        Assert-NativeSuccess "az storage container create 'reports'"
     }
 
     if ($PSCmdlet.ShouldProcess("Function App $FunctionAppName", 'Publish local build to Azure Functions')) {
@@ -109,9 +124,21 @@ try {
         Copy-Item (Join-Path $repoRoot 'dist') (Join-Path $stage 'dist') -Recurse
         Push-Location $stage
         try {
+            # `pnpm run` forwards pnpm config to children as npm_config_*
+            # env vars. A user-level `allow-scripts=@opencode/cli` (set by
+            # the opencode installer) then arrives as
+            # npm_config_allow_scripts, which npm v12 treats as a CLI-layer
+            # --allow-scripts flag and rejects in project installs
+            # (EALLOWSCRIPTS). The stage install is plain npm, not pnpm, so
+            # drop the leaked var first. Project stays pnpm-managed.
+            Remove-Item Env:npm_config_allow_scripts -ErrorAction SilentlyContinue
+            Remove-Item Env:NPM_CONFIG_ALLOW_SCRIPTS -ErrorAction SilentlyContinue
             npm install --omit=dev --no-audit --no-fund
+            Assert-NativeSuccess 'npm install (stage)'
             npm ls --omit=dev --depth=0
+            Assert-NativeSuccess 'npm ls (stage)'
             func azure functionapp publish $FunctionAppName --no-build
+            Assert-NativeSuccess 'func azure functionapp publish'
         }
         finally {
             Pop-Location
