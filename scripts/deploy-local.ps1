@@ -70,6 +70,24 @@ try {
             --settings $settings | Out-Null
     }
 
+    if ($PSCmdlet.ShouldProcess("storage container 'reports'", 'Create private blob container for the scheduled list')) {
+        # The timer and the HTTP handler share the platform's own
+        # AzureWebJobsStorage connection (see src/report/blobStore.ts), so no
+        # new secret is provisioned — only the container. `az storage
+        # container create` leaves public access off, keeping the container
+        # private; the report is only ever read through the gated function.
+        # The value is captured, never printed.
+        $storageConnection = az functionapp config appsettings list `
+            --resource-group $ResourceGroup `
+            --name $FunctionAppName `
+            --query "[?name=='AzureWebJobsStorage'].value | [0]" `
+            --output tsv
+        if ([string]::IsNullOrWhiteSpace($storageConnection)) {
+            throw 'AzureWebJobsStorage app setting is empty — the function app has no storage to hold the reports container.'
+        }
+        az storage container create --name 'reports' --connection-string $storageConnection | Out-Null
+    }
+
     if ($PSCmdlet.ShouldProcess("Function App $FunctionAppName", 'Publish local build to Azure Functions')) {
         # Staged zip deploy. The repo's node_modules is a pnpm symlink farm
         # and the func zipper does not preserve it: the deployed worker died

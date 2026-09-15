@@ -16,7 +16,7 @@ sent — the team sends via `wa.me` click-to-chat links in the HTML report.
 ```pwsh
 pnpm install --frozen-lockfile
 pnpm run build   # tsc + copy src/template.ejs -> dist/template.ejs
-pnpm test        # vitest run (14 files, 131 tests)
+pnpm test        # vitest run (17 files, 156 tests)
 ```
 
 ## Environment
@@ -97,17 +97,29 @@ singleton for existing callers; new code passes a day per invocation.
   only (`scheduled.json`, `run-status.json`, `day-<label>.json`), 26h stale
   rule, scheduled/ad-hoc classification, run-status record.
 - `src/report/store.ts` — `ReportStore` Effect service; in-memory
-  implementation only so far (blob adapter is follow-up work).
+  implementation for tests plus the blob one below.
+- `src/report/blobStore.ts` — thin blob `ReportStore` over the private
+  `reports` container (keys from `cacheKey.ts`, `AzureWebJobsStorage`
+  connection read per operation, missing reads `null`). No domain logic;
+  not unit-tested (wiring only).
+- `src/report/serveScheduled.ts` — pure bookmark page: stored report
+  wrapped in chrome (stale via `isStale`), standalone page before the
+  first run.
+- `src/effect/scheduledRun.ts` — `runScheduledReportEffect()`: resolve
+  the HK day per invocation, generate, store report + run status
+  (failed runs keep the old list), log `durationMs`.
 - `src/report/chrome.ts` — page furniture spliced into the report HTML
   (generated-at line, spelled-out day, stale/failed banners).
 - `src/web/auth.ts` — shared-password signed session core (30-day cookie,
   no session store); cookie parsing/responses belong to the future adapter.
-- `src/azureFunctionApp.ts` + `src/azureSmoke.ts` — the only Azure wiring
-  today: an anonymous `smokeHttp` catch-all proving host + HK time
-  resolution, with the shared-password gate (`src/web/gate.ts` pure
-  decision, `src/azureGate.ts` thin adapter, `REPORT_PASSWORD` app
-  setting) standing in front of it. No Mindbody, no client data on the
-  deployed page yet.
+- `src/azureFunctionApp.ts` + `src/azureReport.ts` + `src/azureTimer.ts` —
+  the Azure wiring: a `reportHttp` catch-all behind the shared-password
+  gate (`src/web/gate.ts` pure decision, `src/azureGate.ts` thin adapter,
+  `REPORT_PASSWORD` app setting) serving the stored scheduled report with
+  no Mindbody calls on page load, plus a `morningTimer` (`0 0 9 * * *`,
+  9am in `TZ=Asia/Hong_Kong`) running the pipeline into the private
+  `reports` container. (`src/azureSmoke.ts` is superseded but kept for its
+  spec.)
 
 See `docs/prd-hosted-reminders.md` for the hosted-report plan and
 `README.deploy-local.md` for the workstation Azure deploy path.
