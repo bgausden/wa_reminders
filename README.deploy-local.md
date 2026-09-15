@@ -111,12 +111,18 @@ Omit `-ReportPassword` to leave the existing setting untouched.
 5. Expired/tampered cookie (edit it in devtools) — back to the plain
    sign-in form, no error text.
 
-Local `func start` note: Core Tools 4.0.5801 on this workstation rejects
-Node 24, so local serving isn't possible here — test against Azure, whose
-Flex app runs Node 24 (see #6). When local serving works again, the gate
-reads the same setting from `local.settings.json` (gitignored, never
-deployed):
+Local `func start` note: the Core Tools worker on this box only accepts the
+Node on `PATH`, and 4.0.5801 rejects Node 24 — so serve locally under Node
+20 via fnm (system Node stays 24 for Azure, which runs Node 24 fine):
 
-```json
-{ "Values": { "REPORT_PASSWORD": "local-only-dev-password" } }
+```powershell
+fnm use 20   # installed via `winget install Schniz.fnm`; `fnm install 20` once
+$env:REPORT_PASSWORD='local-only-dev-password'
+func start --port 7071
 ```
+
+then `http://localhost:7071/api/smoke`. All five gate behaviours
+(anonymous form, wrong-password 401, grant + cookie, authed page, tampered
+cookie) were verified live this way. Upgrading Core Tools to 4.14 was
+tried and abandoned: its postinstall download fails on this machine
+(`chalk.red is not a function` masking a request error), so 4.0.5801 stays.
