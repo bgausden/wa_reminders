@@ -1,37 +1,118 @@
-To run this code at the command-line (generally the only way that works) try
+## wa_reminders
+
+Automated WhatsApp reminders for MBO (Glow Hong Kong). Fetches tomorrow's
+(or a chosen day's) appointments from Mindbody, renders one message per
+client from `src/template.ejs`, and writes a dry-run report. Nothing is
+sent — the team sends via `wa.me` click-to-chat links in the HTML report.
+
+## Prereqs
+
+- Node.js 24
+- pnpm (repo is pnpm-managed — use `pnpm install`, not `npm install`)
+- Azure Functions Core Tools v4 + Azure CLI (only for the Azure smoke deploy)
+
+## Setup
 
 ```pwsh
-$env:NODE_ENV='development'; $env:DEBUG='wa_reminders:*' ; node .\dist\index-fp.js
+pnpm install --frozen-lockfile
+pnpm run build   # tsc + copy src/template.ejs -> dist/template.ejs
+pnpm test        # vitest run (14 files, 131 tests)
 ```
 
-Swap 'development' for 'production' as necessary assuming you have the .env configured with a valid MB API key
+## Environment
+
+`src/effect/AppConfig.ts` loads `.env.development` by default,
+`.env.production` when `NODE_ENV=production` or `--env=production` is passed:
+
+```dotenv
+API_KEY="..."
+SITE_ID="-99"
+MB_USERNAME="..."
+MB_PASSWORD="..."
+MB_BASE_URL="https://api.mindbodyonline.com/public/v6"  # optional, this is the default
+```
+
+`.env.development` points at the Mindbody sandbox; `.env.production`
+points at the live site.
+
+## CLI
+
+Source entry is `src/index.ts`, compiled entry is `dist/index.js`:
+
+```pwsh
+# dry run for tomorrow (default): console + dry-runs/dry-run-<stamp>.txt
+pnpm run dry-run
+$env:NODE_ENV='development'; node .\dist\index.js --dry-run
+
+# include the HTML report with WhatsApp click-to-chat links
+node .\dist\index.js --dry-run --html
+```
+
+The text report never contains `wa.me` links; only the HTML report does
+(`src/effect/whatsapp.ts`: mobile preferred, home fallback, HK numbers get
+`852` prefix; header shows `mobile +..., home +...` so the number used is
+visible).
 
 ## Target day
 
-By default reminders are sent for tomorrow. Override with `--date` (aliases
-`--day`, `--target-day`, `--target-date`):
+Default is tomorrow. Override with `--date` (aliases `--day`,
+`--target-day`, `--target-date`, short `-d`):
 
 ```pwsh
-# offset from today: +1, plus two, 3, today, tomorrow, friday
-$env:NODE_ENV='development'; node .\dist\index-fp.js --dry-run --date "+2"
-# explicit calendar date (also 2026/9/20, 20 Sep 2026, Sep 20)
-$env:NODE_ENV='development'; node .\dist\index-fp.js --dry-run --date 2026-09-20
+node .\dist\index.js --dry-run --date "+2"
+node .\dist\index.js --dry-run --date 2026-09-20
+pnpm run dry-run -- --day "day after tomorrow"
+pnpm run dry-run:prod -- --date 2026-09-20
 ```
 
-Via npm scripts the `--` separator is required, otherwise npm swallows
-the flag and the app silently falls back to tomorrow:
+Accepted specs (`src/targetDay.ts`): offsets (`+1`, `plus two`, `3`,
+`in 3 days`), keywords (`today`, `tomorrow`, `day after tomorrow`,
+weekday names), calendar dates (`2026-09-20`, `2026/9/20`), fuzzy
+(`14 Sep 2026`, `Sep 14`). The `--` separator is required via npm scripts,
+otherwise npm swallows the flag and the run silently falls back to tomorrow.
+Unknown positional args abort with a usage hint.
 
-```pwsh
-npm run dry-run -- --day "day after tomorrow"
-npm run dry-run:prod -- --date 2026-09-20
-```
+Days resolve per invocation (`resolveTargetDay`, `scheduledTargetDay`),
+never at module load — a warm hosted process must not serve yesterday's day.
+`scheduledTargetDay()` means "tomorrow in Hong Kong" regardless of host
+timezone. `src/util.ts` still exports the legacy module-load `tomorrow`
+singleton for existing callers; new code passes a day per invocation.
 
-.env should look something like
+## How it fits together
 
-```dotenv
-API_KEY = "948e8fa98d9e49ee9f4ee3f6e1ec9276"
-SITE_ID =	"-99"
-MB_USERNAME =	"Siteowner"
-MB_PASSWORD = 	"apitest1234"
-DEBUG = "wa_reminders:*"
-```
+- `src/effect/pipeline.ts` — Mindbody fetch (staff, schedule, session types,
+  clients at concurrency 5) plus pure helpers: laser/tanning detection,
+  suppression (`Status !== Booked`), client plans.
+- `src/effect/run.ts` — `runRemindersFor(day)`: pipeline for a day, no
+  rendering, no disk. Shared by CLI and hosted paths.
+- `src/effect/render.ts` — pure rendering: text report + HTML report from
+  domain data and `src/template.ejs`. Template ships with the build
+  (`scripts/copy-template.mjs`, resolved from the compiled module, not cwd).
+- `src/effect/generate.ts` — `generateReportEffect()`: run then render,
+  in memory. `src/effect/dryRun.ts` adds the `dry-runs/` file writes.
+- `src/targetDay.ts` — day parsing, HK helpers (`HK_TIME_ZONE`,
+  `scheduledTargetDay`), long-date formatting.
+- `src/effect/whatsapp.ts` — phone normalize/display, `wa.me` links.
+- `src/report/cacheKey.ts` — storage keys from resolved `YYYY-MM-DD` labels
+  only (`scheduled.json`, `run-status.json`, `day-<label>.json`), 26h stale
+  rule, scheduled/ad-hoc classification, run-status record.
+- `src/report/store.ts` — `ReportStore` Effect service; in-memory
+  implementation only so far (blob adapter is follow-up work).
+- `src/report/chrome.ts` — page furniture spliced into the report HTML
+  (generated-at line, spelled-out day, stale/failed banners).
+- `src/web/auth.ts` — shared-password signed session core (30-day cookie,
+  no session store); cookie parsing/responses belong to the future adapter.
+- `src/azureFunctionApp.ts` + `src/azureSmoke.ts` — the only Azure wiring
+  today: an anonymous `smokeHttp` catch-all proving host + HK time
+  resolution, with the shared-password gate (`src/web/gate.ts` pure
+  decision, `src/azureGate.ts` thin adapter, `REPORT_PASSWORD` app
+  setting) standing in front of it. No Mindbody, no client data on the
+  deployed page yet.
+
+See `docs/prd-hosted-reminders.md` for the hosted-report plan and
+`README.deploy-local.md` for the workstation Azure deploy path.
+
+## Timezone
+
+Every date is a Hong Kong date. Local runs use the machine zone; the Azure
+app sets `TZ=Asia/Hong_Kong` (see `scripts/deploy-local.ps1`).
