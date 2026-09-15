@@ -50,6 +50,10 @@ const CHROME_STYLE =
   '.chrome-meta{margin:.15rem 0;color:#555;font-size:.9rem}' +
   '.chrome-day{margin:.15rem 0 0;font-size:1.05rem;font-weight:600}' +
   '.chrome-banner{background:#c00;color:#fff;border-radius:6px;padding:.6rem .8rem;margin:.6rem 0;font-weight:600}' +
+  '.chrome-note{background:#eef4ff;border:1px solid #99c;color:#234;border-radius:6px;padding:.6rem .8rem;margin:.6rem 0}' +
+  '.chrome-form{margin:.75rem 0}.chrome-form input,.chrome-form button{font-size:1rem;padding:.25rem .5rem}' +
+  '.chrome-quick{margin-left:.5rem;color:#555;font-size:.9rem}' +
+  '.chrome-links{margin:.5rem 0;font-size:.9rem}' +
   '.chrome-error{display:block;margin-top:.25rem;font-weight:400;font-size:.85rem}'
 
 const BODY_OPEN = /<body[^>]*>/i
