@@ -11,5 +11,13 @@
   "extensionBundle": {
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[4.*, 5.0.0)"
+  },
+  "extensions": {
+    "http": {
+      // Serve the report from the site root (`/`) instead of `/api/...`:
+      // the page's own quick links already point at `/`, and the README's
+      // smoke test opens the bare hostname.
+      "routePrefix": ""
+    }
   }
 }
