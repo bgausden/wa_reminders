@@ -1,3 +1,9 @@
+# Plaintext $ReportPassword (below) trips PSAvoidUsingPlainTextForPassword by
+# design: Azure takes the value as plaintext for the app setting, so
+# SecureString would only add ceremony around the same conversion. The value
+# is never logged, stored, or echoed - Assert messages name steps, not values.
+# Suppressed here because this PSSA honors script-scope suppression only.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', '')]
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [Parameter(Mandatory = $true)]
@@ -53,7 +59,7 @@ try {
             # pnpm, not npm: this repo is pnpm-managed (pnpm-lock.yaml) and
             # node_modules is a pnpm symlink farm. `npm install` has no
             # lockfile here, resolves fresh, and overlays an npm-style tree
-            # onto the pnpm one — do not use it.
+            # onto the pnpm one - do not use it.
             pnpm install --frozen-lockfile
             Assert-NativeSuccess 'pnpm install'
             pnpm run build
@@ -62,7 +68,7 @@ try {
     }
 
     # NOTE (Flex Consumption): FUNCTIONS_WORKER_RUNTIME must NOT be set
-    # here — the platform rejects it on Flex apps ("invalid ... for Flex
+    # here - the platform rejects it on Flex apps ("invalid ... for Flex
     # Consumption sites") and the script would abort. The worker runtime
     # comes from functionAppConfig.runtime (node + version) on the site
     # object instead; see README.deploy-local.md.
@@ -86,7 +92,7 @@ try {
     if ($PSCmdlet.ShouldProcess("storage container 'reports'", 'Create private blob container for the scheduled list')) {
         # The timer and the HTTP handler share the platform's own
         # AzureWebJobsStorage connection (see src/report/blobStore.ts), so no
-        # new secret is provisioned — only the container. `az storage
+        # new secret is provisioned - only the container. `az storage
         # container create` leaves public access off, keeping the container
         # private; the report is only ever read through the gated function.
         # The value is captured, never printed.
@@ -97,7 +103,7 @@ try {
             --output tsv
         Assert-NativeSuccess 'az functionapp config appsettings list'
         if ([string]::IsNullOrWhiteSpace($storageConnection)) {
-            throw 'AzureWebJobsStorage app setting is empty — the function app has no storage to hold the reports container.'
+            throw 'AzureWebJobsStorage app setting is empty - the function app has no storage to hold the reports container.'
         }
         az storage container create --name 'reports' --connection-string $storageConnection | Out-Null
         Assert-NativeSuccess "az storage container create 'reports'"
