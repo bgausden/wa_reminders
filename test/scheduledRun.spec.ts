@@ -152,4 +152,34 @@ describe('describeFailure', () => {
     expect(describeFailure(new Error('bad template'))).toBe('bad template')
     expect(describeFailure('plain string')).toBe('plain string')
   })
+
+  it('surfaces the Mindbody verdict, status and blocked IP', () => {
+    const axiosLike = {
+      isAxiosError: true,
+      message: 'Request failed with status code 403',
+      config: { headers: { 'Api-Key': 'live-key-value' }, data: '{"Password":"owner-password"}' },
+      response: {
+        status: 403,
+        data: { Error: { Message: 'Unsupported IP Address 20.44.209.42.', Code: 'DeniedAccess' } },
+      },
+    }
+    const text = describeFailure(new MindbodyError({ op: 'POST /usertoken/issue', cause: axiosLike }))
+    expect(text).toContain('POST /usertoken/issue')
+    expect(text).toContain('403')
+    expect(text).toContain('Unsupported IP Address 20.44.209.42.')
+    expect(text).toContain('DeniedAccess')
+    expect(text).not.toContain('live-key-value')
+    expect(text).not.toContain('owner-password')
+  })
+
+  it('falls back to the axios message when the body carries no verdict', () => {
+    const axiosLike = {
+      isAxiosError: true,
+      message: 'Request failed with status code 403',
+      response: { status: 403, data: '' },
+    }
+    const text = describeFailure(new MindbodyError({ op: 'POST /usertoken/issue', cause: axiosLike }))
+    expect(text).toContain('POST /usertoken/issue')
+    expect(text).toContain('Request failed with status code 403')
+  })
 })

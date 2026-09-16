@@ -22,7 +22,7 @@ import { runStatusFailed, runStatusOk } from '../report/cacheKey.js'
 import { ReportStore, ReportStoreError, type StoredReport } from '../report/store.js'
 import { describeStoredReport } from '../report/serveScheduled.js'
 import { generateReportEffect } from './generate.js'
-import { DryRunError, MindbodyError, summarizeCause } from './mbErrors.js'
+import { DryRunError, MindbodyError, mbErrorText, summarizeCause } from './mbErrors.js'
 import { MbHttp } from './MbHttp.js'
 import { CurrentUser } from './CurrentUser.js'
 import { loadTemplate } from './render.js'
@@ -42,6 +42,17 @@ export interface ScheduledRunOptions {
 export const describeFailure = (cause: unknown): string => {
   if (cause instanceof MindbodyError) {
     const summary = summarizeCause(cause.cause)
+    if (summary !== null && typeof summary === 'object') {
+      const record = summary as { message?: unknown; status?: unknown; data?: unknown }
+      // Prefer Mindbody's own verdict (e.g. "Unsupported IP Address …"
+      // [DeniedAccess]) — it names the cause, including the blocked IP.
+      const reason =
+        mbErrorText(record.data) ??
+        (typeof record.message === 'string' ? record.message : undefined) ??
+        'request failed'
+      const status = typeof record.status === 'number' ? ` (${record.status})` : ''
+      return `${cause.op} failed${status}: ${reason}`
+    }
     const detail = typeof summary === 'string' ? summary : JSON.stringify(summary)
     return `${cause.op} failed: ${detail ?? String(cause.cause)}`
   }
