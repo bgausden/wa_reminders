@@ -12,7 +12,8 @@
     "dry-run": "tsx src/index.ts --dry-run",
     "dry-run:prod": "tsx src/index.ts --dry-run --env=production",
     "start:azure": "func start --port 7071",
-    "deploy:azure:local": "pwsh -NoProfile -File ./scripts/deploy-local.ps1"
+    "deploy:azure:local": "pwsh -NoProfile -File ./scripts/deploy-local.ps1",
+    "provision:azure:egress": "pwsh -NoProfile -File ./scripts/provision-static-egress.ps1"
   },
   "author": "Barry Gausden",
   "license": "ISC",

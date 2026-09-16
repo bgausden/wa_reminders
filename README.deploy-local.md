@@ -89,13 +89,19 @@ Mindbody's entry budget. One-time infra (outside the deploy script, all in
   entry; at creation time `20.205.232.25`)
 - `wa-reminders-natgw` on `func-egress`
 - VNet integration on the app (`func-egress`) with route-all on
-  (`vnetRouteAllEnabled`, plus `WEBSITE_VNET_ROUTE_ALL=1` belt and
-  braces), so Mindbody calls egress via the static IP
+  (`vnetRouteAllEnabled`), so Mindbody calls egress via the static IP
 
 Same-region storage traffic bypasses NAT over the private backbone, so
 the `reports` container is unaffected. Mindbody allowlist then needs just
 the one static entry plus personal ones. Cost is ~USD 37/mo fixed
 (gateway hour + static IP; data pennies at this traffic) — see #19.
+
+Provision or verify the topology idempotently (it preserves an existing
+public IP rather than replacing it):
+
+```powershell
+pnpm run provision:azure:egress -ResourceGroup wa-reminders-rg -FunctionAppName wa-reminders-glow
+```
 
 If a deploy fails with `InvalidAppSettingsException ... RUN_FROM_PACKAGE
 ... not supported with this SKU` even though the setting is absent from
