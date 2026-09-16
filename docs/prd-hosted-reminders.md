@@ -16,7 +16,7 @@ Host the app as a small Azure Functions app (Linux, Flex Consumption plan) that 
 
 Two things happen:
 
-1. **Every morning at 9am Hong Kong time**, a timer function runs the existing pipeline against Mindbody, renders the reminder report, and stores it in a private blob container as the *scheduled list*. Opening the bookmark is then instant — nothing is fetched from Mindbody at page-load time.
+1. **Every morning at 9am Hong Kong time**, a timer function runs the existing pipeline against Mindbody, renders the reminder report, and stores it in a private blob container as the _scheduled list_. Opening the bookmark is then instant — nothing is fetched from Mindbody at page-load time.
 2. **A day picker in the browser** lets the team generate the report for any other day. The generated report is cached under that day's key, so the first view waits once and every later view of the same day is instant. Ad-hoc views are visually distinct from the scheduled list so nobody sends the wrong day's reminders by accident.
 
 Sending does not change. Each client card still carries a `wa.me` click-to-chat link with the message pre-filled; the team clicks, and WhatsApp opens with the text ready to send. No WhatsApp Business API, no template approval, no per-message cost.
@@ -94,7 +94,7 @@ The pipeline is left alone as far as possible. The new work is a set of deep mod
 
 2. **Report rendering** — pure: takes the domain data plus a target day and an invocation time and returns the HTML report string (and the plain-text form). No disk access, no network. The existing report builders move here unchanged in behaviour.
 
-3. **Report generation** — thin composition of *run* then *render*, returning the report in memory. The CLI dry-run becomes this plus a file write, so local behaviour is preserved and both entry points share one path.
+3. **Report generation** — thin composition of _run_ then _render_, returning the report in memory. The CLI dry-run becomes this plus a file write, so local behaviour is preserved and both entry points share one path.
 
 4. **Target-day resolution** — resolves a user-supplied day spec into a target day. Reuses the existing parser, which already understands `+1`, `plus two`, `today`, `tomorrow`, weekday names, `2026-09-20` and `14 Sep 2026`. Gained: a per-invocation factory so the day is computed at run time instead of at module load (a hosted process stays warm across days, and a module-level "tomorrow" would go stale), and a single scheduled-day helper meaning "tomorrow" used by the timer.
 
@@ -124,14 +124,14 @@ The pipeline is left alone as far as possible. The new work is a set of deep mod
 
 **Modules tested:**
 
-- *Mindbody run* — driven through the existing HTTP/config/user test layers; asserts on the reminder data produced for a fixed target day.
-- *Report rendering* — fixed domain data in, asserted HTML out (including the no-phone case, suppressed appointments, laser and tanning lines).
-- *Report generation* — asserts it returns the report without touching storage, and that the CLI path still writes a file.
-- *Target-day resolution* — extends the existing parser tests: offsets, keywords, weekday names, explicit dates, invalid input, and the per-invocation factory producing the right calendar day.
-- *Cache key and staleness* — key derived from the resolved label (never from raw input), staleness boundaries, scheduled-versus-ad-hoc classification.
-- *Report store* — exercised against the in-memory implementation: read/write the scheduled report, per-day cache hits and misses, status round-trip.
-- *Web chrome* — asserts the nav bar and each banner state appear in the wrapped output and that the report body is preserved.
-- *Session auth* — valid session accepted, expired rejected, wrong password rejected, tampered value rejected, login page rendered on failure.
+- _Mindbody run_ — driven through the existing HTTP/config/user test layers; asserts on the reminder data produced for a fixed target day.
+- _Report rendering_ — fixed domain data in, asserted HTML out (including the no-phone case, suppressed appointments, laser and tanning lines).
+- _Report generation_ — asserts it returns the report without touching storage, and that the CLI path still writes a file.
+- _Target-day resolution_ — extends the existing parser tests: offsets, keywords, weekday names, explicit dates, invalid input, and the per-invocation factory producing the right calendar day.
+- _Cache key and staleness_ — key derived from the resolved label (never from raw input), staleness boundaries, scheduled-versus-ad-hoc classification.
+- _Report store_ — exercised against the in-memory implementation: read/write the scheduled report, per-day cache hits and misses, status round-trip.
+- _Web chrome_ — asserts the nav bar and each banner state appear in the wrapped output and that the report body is preserved.
+- _Session auth_ — valid session accepted, expired rejected, wrong password rejected, tampered value rejected, login page rendered on failure.
 
 **Not tested:** the Azure adapters (timer and HTTP handlers) — they are wiring only, and are verified by the deployment spike rather than by unit tests. The blob implementation of the report store is covered indirectly by the in-memory tests plus one manual end-to-end run.
 
