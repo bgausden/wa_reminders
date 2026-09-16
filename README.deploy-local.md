@@ -75,6 +75,28 @@ Flex notes: `WEBSITE_RUN_FROM_PACKAGE` is rejected by the deployment
 validator on Flex (Run-From-Package is inherent there), so it is neither
 set nor present.
 
+## Static egress (NAT gateway)
+
+Flex Consumption egress IPs rotate across a pool larger than the reported
+outbound list (observed live in one session: 104.43.98.218 then
+4.144.250.65, neither in the 14 reported primaries), so allowlisting individual IPs is whack-a-mole against
+Mindbody's entry budget. One-time infra (outside the deploy script, all in
+`southeastasia`, all in `wa-reminders-rg`):
+
+- `wa-reminders-vnet` (`10.10.0.0/16`) with `func-egress`
+  (`10.10.1.0/24`, empty, NAT-bound)
+- `wa-reminders-egress-ip` — Standard static public IP (the allowlist
+  entry; at creation time `20.205.232.25`)
+- `wa-reminders-natgw` on `func-egress`
+- VNet integration on the app (`func-egress`) with route-all on
+  (`vnetRouteAllEnabled`, plus `WEBSITE_VNET_ROUTE_ALL=1` belt and
+  braces), so Mindbody calls egress via the static IP
+
+Same-region storage traffic bypasses NAT over the private backbone, so
+the `reports` container is unaffected. Mindbody allowlist then needs just
+the one static entry plus personal ones. Cost is ~USD 37/mo fixed
+(gateway hour + static IP; data pennies at this traffic) — see #19.
+
 If a deploy fails with `InvalidAppSettingsException ... RUN_FROM_PACKAGE
 ... not supported with this SKU` even though the setting is absent from
 the app, wait five minutes and retry unchanged — the validator has been
