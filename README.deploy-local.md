@@ -104,6 +104,14 @@ After deployment, open the Function App hostname and confirm the page shows:
 - a red banner when the list is stale (>26h, morning run missed) or the
   last run failed
 
+The app is served from the site root (`/`, via an empty `routePrefix` in
+`host.json`) — the old `/api/...` prefix is gone, and the page's own
+quick links point at `/`. On-demand generation failures (`?day=...`)
+banner Mindbody's own verdict verbatim, e.g.
+`POST /usertoken/issue failed (403): Unsupported IP Address 1.2.3.4.
+[DeniedAccess]` — that IP is the app's current Azure egress address, the
+one to allowlist (see #18).
+
 ## Notes
 
 This started as the minimal deployment spike: no Mindbody calls, no client

@@ -16,7 +16,7 @@ sent — the team sends via `wa.me` click-to-chat links in the HTML report.
 ```pwsh
 pnpm install --frozen-lockfile
 pnpm run build   # tsc + copy src/template.ejs -> dist/template.ejs
-pnpm test        # vitest run (17 files, 156 tests)
+pnpm test        # vitest run (21 files, 188 tests)
 ```
 
 ## Environment
@@ -107,7 +107,14 @@ singleton for existing callers; new code passes a day per invocation.
   first run.
 - `src/effect/scheduledRun.ts` — `runScheduledReportEffect()`: resolve
   the HK day per invocation, generate, store report + run status
-  (failed runs keep the old list), log `durationMs`.
+  (failed runs keep the old list), log `durationMs`. Also owns the
+  failure vocabulary: `describeFailure()` (prefers Mindbody's own
+  `Error.Message`, e.g. the blocked IP on DeniedAccess) and
+  `unwrapFailure()` (recovers the typed failure from `runPromise`'s
+  FiberFailure, whose default message would otherwise hide it).
+- `src/effect/mbErrors.ts` — `MindbodyError` plus `summarizeCause()`:
+  message + status + response body only, never request config (headers
+  carry the Api-Key, bodies can carry the owner password).
 - `src/report/chrome.ts` — page furniture spliced into the report HTML
   (generated-at line, spelled-out day, stale/failed banners).
 - `src/web/auth.ts` — shared-password signed session core (30-day cookie,
