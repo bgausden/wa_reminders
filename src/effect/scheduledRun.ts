@@ -16,7 +16,8 @@
  * real runs can be checked against the function timeout; if the client
  * lookups ever push it out, batching them is the obvious lever.
  */
-import { Effect } from 'effect'
+import { Cause, Effect, Option } from 'effect'
+import { FiberFailureCauseId, isFiberFailure } from 'effect/Runtime'
 import { scheduledTargetDay } from '../targetDay.js'
 import { runStatusFailed, runStatusOk } from '../report/cacheKey.js'
 import { ReportStore, ReportStoreError, type StoredReport } from '../report/store.js'
@@ -38,9 +39,22 @@ export interface ScheduledRunOptions {
   template?: string
 }
 
+/**
+ * `Effect.runPromise` rejects with a FiberFailure whose message defaults to
+ * "An error has occurred" — the typed failure (e.g. MindbodyError) sits one
+ * level down. Unwrap it so the page and the logs describe the real cause.
+ * Anything else passes through untouched.
+ */
+export const unwrapFailure = (cause: unknown): unknown => {
+  if (isFiberFailure(cause)) {
+    const failure = Cause.failureOption(cause[FiberFailureCauseId] as Cause.Cause<unknown>)
+    if (Option.isSome(failure)) return failure.value
+  }
+  return cause
+}
+
 /** Short, log- and page-safe text for a generation failure. */
-export const describeFailure = (cause: unknown): string => {
-  if (cause instanceof MindbodyError) {
+export const describeFailure = (cause: unknown): string => {  if (cause instanceof MindbodyError) {
     const summary = summarizeCause(cause.cause)
     if (summary !== null && typeof summary === 'object') {
       const record = summary as { message?: unknown; status?: unknown; data?: unknown }

@@ -5,7 +5,7 @@ import { AppConfigTest } from '../src/effect/AppConfig.js'
 import { makeMbHttpTest, MbHttp } from '../src/effect/MbHttp.js'
 import { CurrentUserTest } from '../src/effect/CurrentUser.js'
 import { MindbodyError } from '../src/effect/mbErrors.js'
-import { describeFailure, runScheduledReportEffect } from '../src/effect/scheduledRun.js'
+import { describeFailure, runScheduledReportEffect, unwrapFailure } from '../src/effect/scheduledRun.js'
 import { makeReportStoreTest, ReportStore } from '../src/report/store.js'
 
 const TEMPLATE =
@@ -181,5 +181,25 @@ describe('describeFailure', () => {
     const text = describeFailure(new MindbodyError({ op: 'POST /usertoken/issue', cause: axiosLike }))
     expect(text).toContain('POST /usertoken/issue')
     expect(text).toContain('Request failed with status code 403')
+  })
+})
+
+describe('unwrapFailure', () => {
+  it('recovers the typed failure from a runPromise rejection', async () => {
+    const typed = new MindbodyError({ op: 'POST /usertoken/issue', cause: 'boom' })
+    const rejection = await Effect.runPromise(Effect.fail(typed)).then(
+      () => 'resolved unexpectedly',
+      (cause: unknown) => cause
+    )
+    // Without unwrapping, the adapter only ever sees Effect's default.
+    expect(String(describeFailure(rejection))).toBe('An error has occurred')
+    expect(unwrapFailure(rejection)).toBe(typed)
+    expect(describeFailure(unwrapFailure(rejection))).toContain('POST /usertoken/issue')
+  })
+
+  it('passes anything else through untouched', () => {
+    const err = new Error('plain')
+    expect(unwrapFailure(err)).toBe(err)
+    expect(unwrapFailure('plain string')).toBe('plain string')
   })
 })

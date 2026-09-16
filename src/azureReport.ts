@@ -27,7 +27,7 @@ import { ReportStoreBlobLive } from './report/blobStore.js'
 import { renderScheduledPage } from './report/serveScheduled.js'
 import { renderDayError, renderDayForm, renderDayPage } from './report/serveDay.js'
 import { runDayReportEffect } from './effect/dayRun.js'
-import { describeFailure } from './effect/scheduledRun.js'
+import { describeFailure, unwrapFailure } from './effect/scheduledRun.js'
 import { resolveTargetDay, type TargetDay } from './targetDay.js'
 
 const html = (status: number, page: string): HttpResponseInit => ({
@@ -110,7 +110,9 @@ export function createReportHandler(layers: ReportHandlerLayers = liveLayers): H
       }
       return html(200, page)
     } catch (cause) {
-      const message = describeFailure(cause)
+      // runPromise rejects with a FiberFailure — unwrap to the typed
+      // failure or the page can only ever say "An error has occurred".
+      const message = describeFailure(unwrapFailure(cause))
       context.error('report serve failed', message)
       if (spec === null || spec.trim() === '') return html(503, unavailablePage())
       return html(503, renderDayError(spec, message))

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { Effect, Layer, Logger, LogLevel } from 'effect'
 import { AppConfigTest } from '../src/effect/AppConfig.js'
 import { makeMbHttpTest } from '../src/effect/MbHttp.js'
+import { MindbodyError } from '../src/effect/mbErrors.js'
 import { CurrentUserTest } from '../src/effect/CurrentUser.js'
 import { makeReportStoreTest, type StoredReport } from '../src/report/store.js'
 import { scheduledTargetDay } from '../src/targetDay.js'
@@ -185,4 +186,32 @@ describe('createReportHandler', () => {
     expect(page).toContain('https://wa.me/85291234567?text=')
     expect(page).toContain('name="day"')
   }, 30000)
+
+  it('banners the typed Mindbody failure, not the FiberFailure default', async () => {
+    // Regression: the adapter passed runPromise's FiberFailure straight to
+    // describeFailure, so every page could only ever say "An error has
+    // occurred" — hiding verdicts like the blocked calling IP.
+    const denied = new MindbodyError({
+      op: 'POST /usertoken/issue',
+      cause: {
+        isAxiosError: true,
+        message: 'Request failed with status code 403',
+        response: {
+          status: 403,
+          data: { Error: { Message: 'Unsupported IP Address 20.44.209.42.', Code: 'DeniedAccess' } },
+        },
+      },
+    })
+    const handle = createReportHandler({
+      store: makeReportStoreTest({}),
+      network: Layer.fail(denied) as unknown as Parameters<typeof createReportHandler>[0]['network'],
+    })
+    const res = await handle(request('day=tomorrow'), context())
+    expect(res.status).toBe(503)
+    const page = String(res.body)
+    expect(page).toContain('Could not generate reminders')
+    expect(page).toContain('Unsupported IP Address 20.44.209.42.')
+    expect(page).toContain('DeniedAccess')
+    expect(page).not.toContain('An error has occurred')
+  })
 })

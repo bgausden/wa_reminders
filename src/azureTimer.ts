@@ -22,7 +22,7 @@ import { AppConfigLive } from './effect/AppConfig.js'
 import { MbHttpLive } from './effect/MbHttp.js'
 import { CurrentUserLive } from './effect/CurrentUser.js'
 import { ReportStoreBlobLive } from './report/blobStore.js'
-import { runScheduledReportEffect } from './effect/scheduledRun.js'
+import { runScheduledReportEffect, describeFailure, unwrapFailure } from './effect/scheduledRun.js'
 
 /** NCRONTAB for 9am daily; interpreted in `TZ` (Asia/Hong_Kong on the app). */
 export const MORNING_TIMER_SCHEDULE = '0 0 9 * * *'
@@ -43,8 +43,9 @@ export async function morningTimerHandler(_timer: Timer, context: InvocationCont
     await Effect.runPromise(runnable)
   } catch (cause) {
     // The failed run status is already stored by the effect; this only marks
-    // the invocation itself as failed in the platform logs.
-    context.error('morning timer run failed', cause instanceof Error ? cause.message : String(cause))
+    // the invocation itself as failed in the platform logs. Unwrap first so
+    // the log names the real failure, not the FiberFailure default.
+    context.error('morning timer run failed', describeFailure(unwrapFailure(cause)))
     throw cause
   }
 }
