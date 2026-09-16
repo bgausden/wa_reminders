@@ -4,3 +4,4 @@ dist
 dry-runs/
 local.settings.json
 .azure-stage/
+.opencode/
