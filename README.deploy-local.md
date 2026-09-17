@@ -77,24 +77,38 @@ set nor present.
 
 ## Static egress (NAT gateway)
 
-Flex Consumption egress IPs rotate across a pool larger than the reported
-outbound list (observed live in one session: 104.43.98.218 then
-4.144.250.65, neither in the 14 reported primaries), so allowlisting individual IPs is whack-a-mole against
-Mindbody's entry budget. One-time infra (outside the deploy script, all in
-`southeastasia`, all in `wa-reminders-rg`):
+This is the live setup (#19). Every Mindbody call leaves through the NAT
+gateway's static public IP, `20.205.232.25` — a single `/32`, which is the
+only app entry in the Mindbody allowlist (personal entries aside).
+
+It is fixed because Flex Consumption egress otherwise rotates across a
+pool larger than the reported outbound list (observed live in one session:
+104.43.98.218 then 4.144.250.65 — both Microsoft AS8075, Singapore —
+neither in the 14 reported primaries), so allowlisting individual pool IPs
+was whack-a-mole against Mindbody's entry budget. Those rotating pool
+entries have been removed from the allowlist. One-time infra (outside the
+deploy script, all in `southeastasia`, all in `wa-reminders-rg`):
 
 - `wa-reminders-vnet` (`10.10.0.0/16`) with `func-egress`
   (`10.10.1.0/24`, empty, NAT-bound)
-- `wa-reminders-egress-ip` — Standard static public IP (the allowlist
-  entry; at creation time `20.205.232.25`)
+- `wa-reminders-egress-ip` — Standard static public IP, `20.205.232.25`
+  (the allowlist entry)
 - `wa-reminders-natgw` on `func-egress`
 - VNet integration on the app (`func-egress`) with route-all on
   (`vnetRouteAllEnabled`), so Mindbody calls egress via the static IP
 
 Same-region storage traffic bypasses NAT over the private backbone, so
-the `reports` container is unaffected. Mindbody allowlist then needs just
-the one static entry plus personal ones. Cost is ~USD 37/mo fixed
-(gateway hour + static IP; data pennies at this traffic) — see #19.
+the `reports` container is unaffected. Cost is ~USD 37/mo fixed
+(gateway hour + static IP; data pennies at this traffic).
+
+If a run ever presents some other address to Mindbody, egress is
+bypassing the gateway — that is a topology problem (VNet integration or
+route-all), not a missing allowlist entry. Confirm the IP still reads
+`20.205.232.25` with:
+
+```powershell
+az network public-ip show --resource-group wa-reminders-rg --name wa-reminders-egress-ip --query ipAddress --output tsv
+```
 
 Provision or verify the topology idempotently (it preserves an existing
 public IP rather than replacing it):
@@ -137,8 +151,10 @@ The app is served from the site root (`/`, via an empty `routePrefix` in
 quick links point at `/`. On-demand generation failures (`?day=...`)
 banner Mindbody's own verdict verbatim, e.g.
 `POST /usertoken/issue failed (403): Unsupported IP Address 1.2.3.4.
-[DeniedAccess]` — that IP is the app's current Azure egress address, the
-one to allowlist (see #18).
+[DeniedAccess]` — with the NAT gateway in place the app should only ever
+present `20.205.232.25`. Any other address there means egress is
+bypassing the gateway: check VNet integration and route-all before
+touching the allowlist (#18).
 
 ## Notes
 

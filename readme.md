@@ -129,7 +129,9 @@ singleton for existing callers; new code passes a day per invocation.
   spec.)
 
 See `docs/prd-hosted-reminders.md` for the hosted-report plan and
-`README.deploy-local.md` for the workstation Azure deploy path.
+`README.deploy-local.md` for the workstation Azure deploy path. Hosted
+Mindbody calls egress through one fixed NAT-gateway IP (`20.205.232.25`),
+which is the only app entry on the Mindbody allowlist.
 
 ## Timezone
 
