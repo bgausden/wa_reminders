@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        
         {
             "name": "Launch with tsx",
             "request": "launch",
@@ -12,8 +13,9 @@
                 "NODE_ENV": "development",
                 "DEBUG": "wa_reminders:*"
             },
-            "runtimeExecutable": "tsx",
+            "runtimeExecutable": "node",
             "args": [
+                "${workspaceFolder}/node_modules/tsx/dist/cli.mjs",
                 "${relativeFile}"
             ],
             "skipFiles": [
@@ -29,8 +31,9 @@
             "env": {
                 "NODE_ENV": "development"
             },
-            "runtimeExecutable": "tsx",
+            "runtimeExecutable": "node",
             "args": [
+                "${workspaceFolder}/node_modules/tsx/dist/cli.mjs",
                 "${workspaceFolder}/src/index.ts",
                 "--dry-run"
             ],
@@ -47,8 +50,9 @@
             "env": {
                 "NODE_ENV": "production"
             },
-            "runtimeExecutable": "tsx",
+            "runtimeExecutable": "node",
             "args": [
+                "${workspaceFolder}/node_modules/tsx/dist/cli.mjs",
                 "${workspaceFolder}/src/index.ts",
                 "--dry-run",
                 "--env=production"
@@ -78,22 +82,6 @@
                 "NODE_ENV": "development"
             },
             "program": "${workspaceFolder}/dist/index.js",
-            "outFiles": [
-                "${workspaceFolder}/dist/**/*",
-                "!**/node_modules/**"
-            ],
-            "request": "launch",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "node"
-        },
-        {
-            "name": "Launch Functional Version",
-            "env": {
-                "NODE_ENV": "development"
-            },
-            "program": "${workspaceFolder}/dist/index-fp.js",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*",
                 "!**/node_modules/**"
