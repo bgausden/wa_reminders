@@ -23,6 +23,7 @@ import {
   type DayKind,
   type RunStatus,
 } from './cacheKey.js'
+import { REPORT_STYLE } from './board.js'
 import { wrapReport } from './chrome.js'
 import type { StoredReport } from './store.js'
 
@@ -51,7 +52,7 @@ export const renderDayLinks = (label: string): string =>
 
 /** The ad-hoc banner: this is a picked day, not the morning list. Never rely on colour alone — it says so. */
 export const renderAdHocBanner = (label: string): string =>
-  `<p class="chrome-note" role="note">Ad-hoc view for ${escapeHtml(formatLongDate(dayLabelDate(label)))} — not the scheduled morning list.</p>`
+  `<p class="note" role="note">Ad-hoc view for ${escapeHtml(formatLongDate(dayLabelDate(label)))} — not the scheduled morning list.</p>`
 
 export interface DayPageOptions {
   /** The cached report, or null when this day has never been generated. */
@@ -75,10 +76,9 @@ export const renderEmptyDayPage = (targetDay: TargetDay, spec: string | null): s
   const day = formatLongDate(dayLabelDate(targetDay.label))
   return (
     `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n` +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
     `<title>No list for ${escapeHtml(day)} yet</title>\n` +
-    `<style>body{font-family:system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}` +
-    `.chrome-form{margin:.75rem 0}.chrome-form input,.chrome-form button{font-size:1rem;padding:.25rem .5rem}` +
-    `.chrome-quick{margin-left:.5rem;color:#555;font-size:.9rem}</style>\n` +
+    `<style>${REPORT_STYLE}</style>\n` +
     `</head>\n<body>\n<h1>No list for ${escapeHtml(day)} yet</h1>\n` +
     `${renderDayForm(spec)}\n` +
     `<p>Nothing has been generated for this day. Press Generate to run it now.</p>\n` +
@@ -112,12 +112,10 @@ export const renderDayPage = (opts: DayPageOptions): string => {
 /** What the user sees when their spec (or the generation) fails: the form, plus the reason in plain language. */
 export const renderDayError = (spec: string | null, message: string): string =>
   `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n` +
+  '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
   `<title>Could not generate reminders</title>\n` +
-  `<style>body{font-family:system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}` +
-  `.chrome-form{margin:.75rem 0}.chrome-form input,.chrome-form button{font-size:1rem;padding:.25rem .5rem}` +
-  `.chrome-quick{margin-left:.5rem;color:#555;font-size:.9rem}` +
-  `.chrome-banner{background:#c00;color:#fff;border-radius:6px;padding:.6rem .8rem;margin:.6rem 0;font-weight:600}</style>\n` +
+  `<style>${REPORT_STYLE}</style>\n` +
   `</head>\n<body>\n<h1>Could not generate reminders</h1>\n` +
   `${renderDayForm(spec)}\n` +
-  `<p class="chrome-banner" role="alert">${escapeHtml(message)}</p>\n` +
+  `<p class="banner" role="alert">${escapeHtml(message)}</p>\n` +
   `</body>\n</html>\n`

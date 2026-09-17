@@ -1,8 +1,10 @@
-// Ship the reminder template with the compiled output.
+// Ship the reminder template and the Glow brand asset with the compiled output.
 //
 // `tsc` only emits JavaScript, so `src/template.ejs` never reaches `dist`.
 // The compiled app resolves the template next to its own module
-// (see src/effect/render.ts), so the build has to copy it there:
+// (see src/effect/render.ts), so the build has to copy it there. The brand
+// SVG is inlined into the HTML at render time (see src/report/glowBrand.ts),
+// but the raw asset ships too so the file in `dist` stays reviewable:
 //
 //   "build": "tsc --project tsconfig.json && node scripts/copy-template.mjs"
 //
@@ -25,4 +27,13 @@ await mkdir(outDir, { recursive: true })
 await copyFile(source, target)
 console.log(
   `template: ${path.relative(repoRoot, source)} -> ${path.relative(repoRoot, target)}`
+)
+
+// Raw brand asset for reviewability; the HTML inlines src/report/glowBrand.ts.
+const brandSource = path.join(repoRoot, 'src', 'assets', 'glow-horizontal.svg')
+const brandDir = path.join(outDir, 'assets')
+await mkdir(brandDir, { recursive: true })
+await copyFile(brandSource, path.join(brandDir, 'glow-horizontal.svg'))
+console.log(
+  `brand: ${path.relative(repoRoot, brandSource)} -> ${path.relative(repoRoot, brandDir)}`
 )

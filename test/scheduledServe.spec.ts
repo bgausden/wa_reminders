@@ -79,7 +79,7 @@ describe('renderScheduledPage', () => {
     )
     expect(page).toContain('Generated Sunday September 13th 2026 at 9am')
     expect(page).toContain('Reminders for Monday September 14th 2026')
-    expect(page).not.toContain('class="chrome-banner"')
+    expect(page).not.toContain('class="banner"')
     // One card per client: rendered message, wa.me link, phone numbers.
     expect(page).toContain('https://wa.me/85291234567?text=')
     expect(page).toContain('mobile +85291234567, home +85223456789')
@@ -94,7 +94,7 @@ describe('renderScheduledPage', () => {
       runStatusOk(GENERATED_AT, DAY),
       STALE_NOW
     )
-    expect(page).toContain('chrome-banner')
+    expect(page).toContain('class="banner"')
     expect(page).toContain('out of date')
     // The list itself is still there, under the warning.
     expect(page).toContain('https://wa.me/85291234567?text=')
@@ -106,7 +106,7 @@ describe('renderScheduledPage', () => {
       runStatusFailed(GENERATED_AT, DAY, 'GET staff/staff failed'),
       FRESH_NOW
     )
-    expect(page).toContain('chrome-banner')
+    expect(page).toContain('class="banner"')
     expect(page).toContain('The last scheduled run failed')
     expect(page).toContain('GET staff/staff failed')
   })
@@ -115,7 +115,7 @@ describe('renderScheduledPage', () => {
     const page = renderScheduledPage(null, null, FRESH_NOW)
     expect(page).toContain('No reminder list yet')
     expect(page).toContain('9am Hong Kong time')
-    expect(page).not.toContain('class="chrome-banner"')
+    expect(page).not.toContain('class="banner"')
   })
 
   it('puts the failed banner on the empty page when the first run failed', async () => {
@@ -125,7 +125,7 @@ describe('renderScheduledPage', () => {
       FRESH_NOW
     )
     expect(page).toContain('No reminder list yet')
-    expect(page).toContain('chrome-banner')
+    expect(page).toContain('class="banner"')
     expect(page).toContain('The last scheduled run failed')
     expect(page).toContain('Mindbody 503')
   })

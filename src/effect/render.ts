@@ -185,8 +185,38 @@ export const buildDryRunReport = (
     return lines.join('\n')
   })
 
+import {
+  buildBoard,
+  REPORT_FOOTER,
+  REPORT_STYLE,
+  WHATSAPP_ICON,
+  reportScript,
+  sentKeyForDay,
+} from '../report/board.js'
+
+// Split `10:30AM` -> `10:30` + `AM`, `3PM` -> `3` + `PM`. Fail-safe:
+// unparseable input renders as-is with no meridiem span.
+const splitTime = (time: string): { main: string; meridiem: string } => {
+  const match = /^(.*?)(AM|PM)$/.exec(time.trim())
+  if (!match) return { main: time, meridiem: '' }
+  return { main: match[1] ?? time, meridiem: match[2] ?? '' }
+}
+
+// `Tamara` for one block, `Elaine + Carol` across blocks.
+const staffSmall = (plan: ClientPlan): string => {
+  const names: Array<string> = []
+  for (const block of plan.blocks) {
+    const name = firstName(block.staffName)
+    if (name !== '' && !names.includes(name)) names.push(name)
+  }
+  return names.join(' + ')
+}
+
 // HTML dry-run: same messages as the text report, plus one click-to-chat
 // link per client. Text report and console output never contain wa.me links.
+// Layout follows `.impeccable/prototype-reminder-list.html`: sticky brand
+// board, time gutter, tags, Send/Copy/Mark-sent actions, collapsible
+// message, suppressed list, footer, vanilla script. First names label cards.
 export const buildDryRunHtmlReport = (
   outputs: ReadonlyArray<ReminderOutput>,
   clients: ReadonlyArray<ReminderClient>,
@@ -198,34 +228,93 @@ export const buildDryRunHtmlReport = (
     const suppressed = outputs.filter((o) => o.suppressReason.length > 0)
     const sendableCount = plans.reduce((n, p) => n + p.appointmentIds.length, 0)
 
+    const now = context?.invokedAt ?? new Date()
+    const summary = `DRY RUN — ${plans.length} to send (${sendableCount} appointments), ${suppressed.length} suppressed`
+    const targetMidnight =
+      context?.targetDay !== undefined ? context.targetDay.midnight : null
     const banner =
       context?.targetDay !== undefined
         ? `Invoked ${formatLongDateTime(context.invokedAt ?? new Date())} for target day ${formatLongDate(context.targetDay.midnight)} (offset +${context.targetDay.offset})`
         : null
-    const summary = `DRY RUN — ${plans.length} to send (${sendableCount} appointments), ${suppressed.length} suppressed`
+    const board = buildBoard({
+      title: 'Reminder list',
+      dayLine:
+        targetMidnight !== null ? `Reminders for ${formatLongDate(targetMidnight)}` : summary,
+      metaLine:
+        banner !== null
+          ? `${banner} · ${summary}`
+          : `Generated ${formatLongDateTime(now)} · ${summary}`,
+      total: plans.length,
+    })
 
     const sections: Array<string> = []
-    const now = context?.invokedAt ?? new Date()
+    let index = 0
     for (const plan of plans) {
+      index += 1
       const data = planTemplateData(plan, now)
       const displayName = clientDisplayName(clients, plan.clientId)
       const message = yield* renderReminder(template, { clientDisplayName: displayName, ...data })
       const firstBlock = plan.blocks[0]
+      const firstServices = formatServiceList(firstBlock?.services ?? [])
+      const allServices = plan.blocks.map((b) => formatServiceList(b.services)).join(' ')
+      const staff = staffSmall(plan)
       const phone = clientPhoneForWhatsApp(findClient(clients, plan.clientId))
-      const link =
+      const needsAttention = phone === null || data.hasLaser === true || data.hasTanning === true
+      const tags: Array<string> = []
+      if (data.hasLaser === true) tags.push('<span class="tag attn">Laser — shave note</span>')
+      if (data.hasTanning === true) tags.push('<span class="tag attn">Tanning — prep note</span>')
+      if (plan.appointmentIds.length > 1)
+        tags.push(`<span class="tag">${plan.appointmentIds.length} appointments</span>`)
+      const tagsHtml = tags.length > 0 ? ` <span class="tags">${tags.join('')}</span>` : ''
+      const searchIndex = `${displayName} ${allServices} ${plan.blocks.map((b) => b.staffName).join(' ')}`
+      const { main, meridiem } = splitTime(data.AppointmentTime)
+      const apptLabel =
+        plan.appointmentIds.length > 1
+          ? `appts ${plan.appointmentIds.join(', ')}`
+          : `appt ${plan.appointmentIds.join(', ')}`
+      const actions =
         phone !== null
-          ? `<a href="${escapeHtml(buildWhatsAppLink(phone, message))}" target="_blank" rel="noopener noreferrer">Send via WhatsApp to ${escapeHtml(displayName)} (${escapeHtml(phone)})</a>`
-          : `<span class="missing">No mobile number — manual lookup needed</span>`
+          ? `<a class="btn primary" target="_blank" rel="noopener" href="${escapeHtml(buildWhatsAppLink(phone, message))}">${WHATSAPP_ICON}Send via WhatsApp</a>`
+          : `<button class="btn primary" disabled>Send via WhatsApp</button>`
+      const missing =
+        phone === null ? '\n<p class="missing">No mobile number — manual lookup needed</p>' : ''
+      const open = index <= 3 ? ' open' : ''
       sections.push(
-        `<section class="card">\n<h2>to client ${escapeHtml(plan.clientId)} (staff ${escapeHtml(firstBlock?.staffName ?? '')}, appointments ${escapeHtml(plan.appointmentIds.join(', '))}, ${escapeHtml(clientPhonesHeader(findClient(clients, plan.clientId)))})</h2>\n<p>${link}</p>\n<pre>${escapeHtml(message)}</pre>\n</section>`
+        `<section class="card" data-name="${escapeHtml(searchIndex)}" data-attn="${needsAttention ? 'true' : 'false'}">\n` +
+          `<div class="time">${escapeHtml(main)}${meridiem !== '' ? `<span style="font-weight:400">${escapeHtml(meridiem)}</span>` : ''}<small>${escapeHtml(staff)}</small></div>\n` +
+          '<div>\n' +
+          `<h2>${escapeHtml(displayName)} — ${escapeHtml(firstServices)}${tagsHtml}</h2>\n` +
+          `<p class="phones">mobile ${escapeHtml(formatPhoneForDisplay(findClient(clients, plan.clientId)?.MobilePhone) ?? '-')}, home ${escapeHtml(formatPhoneForDisplay(findClient(clients, plan.clientId)?.HomePhone) ?? '-')} · ${escapeHtml(apptLabel)}</p>${missing}\n` +
+          `<div class="actions">\n${actions}\n` +
+          `<button class="btn ghost" data-copy="msg-${index}">Copy message</button>\n` +
+          `<button class="btn ghost" data-sent="c${index}" aria-pressed="false">Mark sent</button>\n</div>\n` +
+          `<p class="state-line" data-state="c${index}"></p>\n` +
+          `<details class="msg"${open}><summary>Message preview</summary><pre id="msg-${index}">${escapeHtml(message)}</pre></details>\n` +
+          '</div>\n</section>'
       )
     }
     const suppressedBlock =
       suppressed.length > 0
-        ? `<h2>Suppressed</h2>\n<ul>\n${suppressed.map((o) => `<li>suppressed appointment ${o.Id} (client ${escapeHtml(o.ClientId)}): ${escapeHtml(o.suppressReason.join(', '))}</li>`).join('\n')}\n</ul>`
+        ? `<section class="suppressed">\n<h2>Suppressed — ${suppressed.length}</h2>\n<ul>\n${suppressed.map((o) => `<li>suppressed appointment ${o.Id} (client ${escapeHtml(o.ClientId)}): ${escapeHtml(o.suppressReason.join(', '))}</li>`).join('\n')}\n</ul>\n</section>`
         : ''
 
-    return `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>${escapeHtml(summary)}</title>\n<style>body{font-family:system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}pre{white-space:pre-wrap;background:#f6f6f6;padding:1rem;border-radius:8px}.card{border:1px solid #ddd;border-radius:8px;padding:1rem;margin:1rem 0}.missing{color:#a00}</style>\n</head>\n<body>\n<h1>${escapeHtml(summary)}</h1>\n${banner !== null ? `<p>${escapeHtml(banner)}</p>\n` : ''}${sections.join('\n')}\n${suppressedBlock}\n</body>\n</html>\n`
+    const dayKey =
+      context?.targetDay !== undefined && typeof context.targetDay.midnight !== 'undefined'
+        ? (() => {
+            const m = context.targetDay.midnight
+            const pad = (n: number): string => `${n}`.padStart(2, '0')
+            return `${m.getFullYear()}-${pad(m.getMonth() + 1)}-${pad(m.getDate())}`
+          })()
+        : null
+    return (
+      '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+      `<title>${escapeHtml(summary)}</title>\n<style>${REPORT_STYLE}</style>\n</head>\n<body>\n` +
+      `${board}\n` +
+      '<p class="note" role="note">Sending stays human — open WhatsApp, check, send. Sent ticks persist only in this browser.</p>\n' +
+      `<main class="list" id="list">\n${sections.join('\n')}\n</main>\n` +
+      `${suppressedBlock}\n${REPORT_FOOTER}\n${reportScript(sentKeyForDay(dayKey))}\n</body>\n</html>\n`
+    )
   })
 
 /** Both forms of the report: plain text for console/file, HTML for the browser. */

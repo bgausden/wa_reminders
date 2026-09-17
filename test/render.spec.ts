@@ -79,7 +79,7 @@ describe('report rendering', () => {
     expect(report).toContain('1 to send (1 appointments), 1 suppressed')
     expect(report).toContain('--- suppressed appointment 2 (client c9): Status ---')
     expect(report.indexOf('suppressed appointment 2')).toBeGreaterThan(report.indexOf('Hi Ann,'))
-    expect(html).toContain('<h2>Suppressed</h2>')
+    expect(html).toContain('Suppressed — 1')
     expect(html).toContain('suppressed appointment 2 (client c9): Status')
     // No card for the suppressed client.
     expect(html).not.toContain('to client c9')
@@ -115,5 +115,43 @@ describe('report rendering', () => {
     )
     expect(report.indexOf('Invoked Sunday')).toBeLessThan(report.indexOf('DRY RUN'))
     expect(html).toContain('Invoked Sunday September 13th 2026 at 8:56pm')
+  })
+
+  it('renders prototype cards: first names, time gutter, tags and actions', async () => {
+    const laser = output({
+      Id: 1,
+      ClientId: 'c1',
+      ServiceName: 'Laser - Full Legs',
+      IsLaser: true,
+      StartDateTime: '2026-09-14T11:15:00',
+    })
+    const plain = output({ Id: 2, ClientId: 'c2', StartDateTime: '2026-09-14T10:30:00' })
+    const run = runOf(
+      [laser, plain],
+      [client(), client({ Id: 'c2', FirstName: 'Bo', MobilePhone: '92345678' })]
+    )
+    const { html } = await render(run, {
+      invokedAt: new Date(2026, 8, 13, 20, 56),
+      targetDay: TARGET_DAY,
+    })
+    // Brand board with spelled-out day, progress rail, search and filters.
+    expect(html).toContain('<header class="board">')
+    expect(html).toContain('Reminders for Monday September 14th 2026')
+    expect(html).toContain('id="railFill"')
+    expect(html).toContain('0 of 2 sent')
+    expect(html).toContain('data-f="attn"')
+    // First names label cards; time gutter splits the meridiem.
+    expect(html).toContain('Ann — Laser - Full Legs')
+    expect(html).toContain('<span style="font-weight:400">AM</span>')
+    expect(html).toContain('<small>Tamara</small>')
+    // Laser tag marks the card as needing attention; the plain card is not.
+    expect(html).toContain('Laser — shave note')
+    expect(html).toContain('data-attn="true"')
+    expect(html).toContain('data-attn="false"')
+    // Actions per card, script scoped to the target day.
+    expect(html).toContain('Send via WhatsApp')
+    expect(html).toContain('Copy message')
+    expect(html).toContain('Mark sent')
+    expect(html).toContain('reminders-sent-2026-09-14')
   })
 })

@@ -16,6 +16,7 @@ import { escapeHtml } from '../effect/whatsapp.js'
 import { formatLongDate } from '../targetDay.js'
 import { dayLabelDate, isStale, type RunStatus } from './cacheKey.js'
 import { wrapReport } from './chrome.js'
+import { REPORT_STYLE } from './board.js'
 import type { StoredReport } from './store.js'
 
 /** Page shown before the first successful timer run stored anything. */
@@ -25,20 +26,17 @@ export const renderEmptyScheduledPage = (
 ): string => {
   const failed =
     runStatus !== null && !runStatus.success
-      ? `<p class="chrome-banner" role="alert">The last scheduled run failed — no list is available yet.` +
+      ? `<p class="banner" role="alert">The last scheduled run failed — no list is available yet.` +
         (runStatus.error !== null && runStatus.error.trim() !== ''
-          ? `\n<span class="chrome-error">${escapeHtml(runStatus.error)}</span>`
+          ? `\n<span class="detail">${escapeHtml(runStatus.error)}</span>`
           : '') +
         `</p>`
       : ''
   return (
     `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n` +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
     `<title>No reminder list yet</title>\n` +
-    `<style>body{font-family:system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}` +
-    `.chrome-banner{background:#c00;color:#fff;border-radius:6px;padding:.6rem .8rem;margin:.6rem 0;font-weight:600}` +
-    `.chrome-form{margin:.75rem 0}.chrome-form input,.chrome-form button{font-size:1rem;padding:.25rem .5rem}` +
-    `.chrome-quick{margin-left:.5rem;color:#555;font-size:.9rem}` +
-    `.chrome-error{display:block;margin-top:.25rem;font-weight:400;font-size:.85rem}</style>\n` +
+    `<style>${REPORT_STYLE}</style>\n` +
     `</head>\n<body>\n<h1>No reminder list yet</h1>\n` +
     `<p>The morning run has not stored one. It runs at 9am Hong Kong time.</p>\n${failed}` +
     `${extra.join('\n')}\n</body>\n</html>\n`

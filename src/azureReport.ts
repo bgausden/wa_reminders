@@ -29,6 +29,7 @@ import { renderDayError, renderDayForm, renderDayPage } from './report/serveDay.
 import { runDayReportEffect } from './effect/dayRun.js'
 import { describeFailure, unwrapFailure } from './effect/scheduledRun.js'
 import { resolveTargetDay, type TargetDay } from './targetDay.js'
+import { REPORT_STYLE } from './report/board.js'
 
 const html = (status: number, page: string): HttpResponseInit => ({
   status,
@@ -38,7 +39,8 @@ const html = (status: number, page: string): HttpResponseInit => ({
 
 const unavailablePage = (): string =>
   `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n` +
-  `<title>Reminder list unavailable</title>\n</head>\n<body>\n<h1>Reminder list unavailable</h1>\n` +
+  '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+  `<title>Reminder list unavailable</title>\n<style>${REPORT_STYLE}</style>\n</head>\n<body>\n<h1>Reminder list unavailable</h1>\n` +
   `<p>The stored list could not be read. The morning run may have failed — try again later.</p>\n` +
   `</body>\n</html>\n`
 
