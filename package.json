@@ -6,6 +6,7 @@
   "main": "dist/azureFunctionApp.js",
   "scripts": {
     "build": "tsc --project tsconfig.json && node scripts/copy-template.mjs",
+    "watch": "tsc --watch --project tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "dev": "tsx src/index.ts",
