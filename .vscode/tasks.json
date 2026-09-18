@@ -52,6 +52,17 @@
             "command": "npm prune --production",
             "dependsOn": "npm build (functions)",
             "problemMatcher": []
+        },
+        {
+            "type": "npm",
+            "script": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "label": "npm: build",
+            "detail": "tsc --project tsconfig.json && node scripts/copy-template.mjs"
         }
     ]
 }
